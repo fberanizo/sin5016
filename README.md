@@ -7,15 +7,6 @@ Repositório dos códigos desenvolvidos para a disciplina de aprendizado de máq
  - Mistura de especialistas hierárquica
  - Árvore de decisão
 
-
-
-Dillinger requires [Node.js](https://nodejs.org/) v4+ to run.
-
-Download and extract the [latest pre-built release](https://github.com/joemccann/dillinger/releases).
-
-Install the dependencies and devDependencies and start the server.
-
-
 License
 ----
 
