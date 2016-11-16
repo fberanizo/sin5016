@@ -3,6 +3,7 @@
 from context import tree
 
 import unittest, numpy, pandas
+from sklearn.model_selection import train_test_split
 
 class TreeTestSuite(unittest.TestCase):
     """Suíte de testes para árvores de decisão."""
@@ -14,7 +15,13 @@ class TreeTestSuite(unittest.TestCase):
         dataset = pandas.read_csv('../datasets/iris/iris.data', sep=',').as_matrix()
         X = dataset[:,:-1]
         y = dataset[:,-1]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
 
+        classifier = tree.DecisionTree()
+        classifier.fit(X_train, y_train)
+        
+        y_predicted = classifier.predict(X_test)
+        print(y_predicted)
 
         assert True
 
