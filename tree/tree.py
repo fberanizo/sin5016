@@ -35,7 +35,7 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
             return root['decision']
         else:
             partition_index = list(map(lambda eval: eval(X), root['partition_eval'])).index(True)
-            self.predict_recursive(X, root['partitions'][partition_index])
+            return self.predict_recursive(X, root['partitions'][partition_index])
 
     def fit_tree(self, X, y, attribute_list):
         """Treina uma árvore de decisão criando os nós que a compõe."""
