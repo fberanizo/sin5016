@@ -40,24 +40,52 @@ class SVM(BaseEstimator, ClassifierMixin):
         # e que sejam 'non-bound' (vetores de margem ou de erro)
 
         # Seleciona amostra da classe "1"
-        alph1 = self.select_sample_1()
+        idx1 = self.select_sample_1()
+
+        # Seleciona amostra da classe "2"
+        idx2 = self.select_sample_2(idx1)
+
+        print(idx1)
+        print(idx2)
 
         return self
-
-    def select_sample_1(self):
-        alph1 = 0
-        for x, y, alph in zip(self.X[self.partition_1], [1], self.alph[self.partition_1]):
-            kkt = self.f(x.T) * y - 1
-            if ((alph1 == 0 and kkt < -self.tolerance) or
-                (alph == self.C and kkt > -self.tolerance) or
-                (0 < alph1 < self.C and abs(kkt) < self.eps)):
-                alph1 = alph
-        return alph1
 
     def f(self, x):
         """Calcula o valor de f(x) para kernel linear."""
         fx = sum(numpy.multiply(numpy.multiply(self.y, self.alph), numpy.dot(self.X, x)) + self.tolerance)
         return -1 if fx < 0 else 1
+
+    def select_sample_1(self):
+        idx1 = -1
+        for idx in self.partition_1[0]:
+            x = self.X[idx,:]; y = 1; alph = self.alph[idx]
+            fx1 = self.f(x.T)
+            kkt = fx1 * y - 1
+
+            if ((alph == 0 and kkt <= 0) or
+                (alph == self.C and kkt >= 0) or
+                (0 < alph < self.C and abs(kkt) < self.eps)):
+                idx1 = idx
+                break
+        return idx1
+
+    def select_sample_2(self, idx1):
+        idx2 = -1; fx1 = self.f(self.X[idx1,:].T); fx2 = 0; tmax = -1
+        for idx in self.partition_2[0]:
+            x = self.X[idx,:]; y = -1; alph = self.alph[idx]
+            fx2 = self.f(x.T)
+            kkt = fx2 * y - 1
+
+            if ((alph == 0 and kkt <= 0) or
+                (alph == self.C and kkt >= 0) or
+                (0 < alph < self.C and abs(kkt) < self.eps)):
+
+                temp = abs(fx2 - fx1)
+
+                if temp > tmax:
+                    tmax = temp
+                    idx2 = idx
+        return idx2
 
 
     def predict(self, X):
