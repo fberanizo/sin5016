@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import numpy
+import numpy, random
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import normalize
 
@@ -13,6 +13,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         self.gamma = gamma
         self.eps = 1e-3
         self.tol = 1e-3 # ksi
+        self.b = 0
 
     def fit(self, X, y):
         """Treina o SVM utilizando o algoritmo SMO. 
@@ -42,12 +43,11 @@ class SVM(BaseEstimator, ClassifierMixin):
         # até que todas amostras obedeçam as condições de KKT por um epsilon  
         while samples_violating_kkt_conditions > 0 or loop_all_samples:
             
-            if loop_all_samples:
-                partition = numpy.where(self.alph)
-            else:
-                partition = numpy.where(numpy.logical_and(self.alph > 0, self.alph < self.C))
+            partition = range(self.alph.size)
+            if not loop_all_samples:
+                partition = numpy.where(numpy.logical_and(self.alph > 0, self.alph < self.C))[0]
 
-            for sample in partition[0]:
+            for sample in partition:
                 samples_violating_kkt_conditions += self.examine_sample(sample)
 
             if loop_all_samples:
@@ -57,19 +57,25 @@ class SVM(BaseEstimator, ClassifierMixin):
 
         return self
 
-    def examine_sample(self, sample1):
+    def examine_sample(self, sample2):
         """Retorna 1 caso otimização foi possível, do contrário retorna 0."""
-        y1 = self.y[sample1,:]
-        alph1 = self.alph[sample1]
-        E1 = self.f(self.X[sample1,:]) - y2 # TODO: buscar E1 na cache
+        y2 = self.y[sample2]
+        alph2 = self.alph[sample2]
+        E2 = self.f(self.X[sample2,:]) - y2 # TODO: buscar E2 na cache
         r2 = E2*y2
-        if (r2 < -self.tol and alph2 < C) or (r2 > self.tol and alph2 > 0):
+        print("examine_sample %d, y = %d, alph2 = %f" % (sample2, y2, alph2))
+
+        if (r2 < -self.tol and alph2 < self.C) or (r2 > self.tol and alph2 > 0):
             # Há 3 estratégias para selecionar a segunda amostra:
             # 1) Escolhe a segunda amostra que maximize o passe de otimização, aproximado por |E1-E2|
 
             # 2) Escolhe amostra aleatória dentre as non-bound (0 < alpha < C)
 
             # 3) Escolhe amostra aleatória dentre todas
+            sample_list = list(range(self.X.shape[0]))
+            random.shuffle(sample_list)
+            for sample1 in sample_list:
+                self.optimize_samples(sample1, sample2)
             return 1
 
         return 0
@@ -79,12 +85,14 @@ class SVM(BaseEstimator, ClassifierMixin):
         if sample1 == sample2:
             return 0
 
-        y1 = self.y[sample1,:]
-        E1 = self.f(self.X[sample1,:]) - y2 # TODO: buscar E1 na cache
+        y1 = self.y[sample1]
+        E1 = self.f(self.X[sample1,:]) - y1 # TODO: buscar E1 na cache
         alph1 = self.alph[sample1]
+        y2 = self.y[sample2]
+        E2 = self.f(self.X[sample2,:]) - y2 # TODO: buscar E2 na cache
         alph2 = self.alph[sample2]
         s = y1*y2
-        lower_bound, upper_bound = self.compute_bounds()
+        lower_bound, upper_bound = self.compute_bounds(sample1, sample2)
         if lower_bound == upper_bound:
             return 0
 
@@ -119,7 +127,10 @@ class SVM(BaseEstimator, ClassifierMixin):
             return 0
 
         a1 = alph1 + s*(alph2 - a2)
-        # Update threshold to reflect change in Lagrange multipliers
+        
+        # Atualiza o parâmetro b
+        self.b = self.threshold(sample1, sample2, a1, a2)
+
         # Update weight vector to reflect change in a1 & a2, if SVM is linear
         # Update error cache using new Lagrange multipliers
         
@@ -129,11 +140,30 @@ class SVM(BaseEstimator, ClassifierMixin):
 
     def f(self, X):
         """Calcula a saída do classificador para uma dada amostra X."""
-        return sum(numpy.multiply(numpy.multiply(self.y, self.alph), numpy.apply_along_axis(self.kernel_func, 1, self.X, X)) - self.b())
+        return sum(numpy.multiply(numpy.multiply(self.y, self.alph), numpy.apply_along_axis(self.kernel_func, 1, self.X, X)) - self.b)
 
-    def b(self):
+    def threshold(self, sample1, sample2, a1, a2):
         """Calcula o parâmetro b."""
-        return 0.0
+        y1 = self.y[sample1]
+        X1 = self.X[sample1,:]
+        alpha1 = self.alph[sample1]
+        E1 = self.f(self.X[sample1,:]) - y1 # TODO: buscar E1 na cache
+        y2 = self.y[sample2]
+        X2 = self.X[sample2,:]
+        alpha2 = self.alph[sample2]
+        E2 = self.f(self.X[sample2,:]) - y2 # TODO: buscar E1 na cache
+        
+        b1 = E1 + y1*(a1 - alpha1)*self.kernel_func(X1, X1) + y2*(a2 - alpha2)*self.kernel_func(X1, X2) + self.b
+
+        if 0 < a1 < self.C:
+            return b1
+
+        b2 = E2 + y1*(a1 - alpha1)*self.kernel_func(X1, X2) + y2*(a2 - alpha2)*self.kernel_func(X2, X2) + self.b
+
+        if 0 < a2 < self.C:
+            return b2
+
+        return numpy.mean([b1, b2])
 
     def kernel_func(self, Xj, X):
         """Calcula saída da função kernel."""
@@ -142,7 +172,19 @@ class SVM(BaseEstimator, ClassifierMixin):
         else:
             raise Exception('Kernel %s not implemented' % self.kernel)
 
-    def compute_bounds(self):
+    def compute_bounds(self, sample1, sample2):
+        y1 = self.y[sample1]
+        alpha1 = self.alph[sample1]
+        y2 = self.y[sample2]
+        alpha2 = self.alph[sample2]
+
+        if y1 == y2:
+            lower_bound = max(0, alpha2 + alpha1 - self.C)
+            upper_bound = min(self.C, alpha2 + alpha1)
+        else:
+            lower_bound = max(0, alpha2 - alpha1)
+            upper_bound = min(self.C, self.C + alpha2-alpha1)
+
         return lower_bound, upper_bound
 
     def predict(self, X):
