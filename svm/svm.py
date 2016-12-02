@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score
 class SVM(BaseEstimator, ClassifierMixin):
     """Classe que implementa um SVM."""
 
-    def __init__(self, C, kernel='linear', gamma='auto'):
+    def __init__(self, C, kernel='rbf', gamma='auto'):
         self.C = C
         self.kernel = kernel
         self.gamma = gamma
@@ -39,12 +39,18 @@ class SVM(BaseEstimator, ClassifierMixin):
         # Inicializa multiplicadores de Lagrange para cada amostra
         self.alph = numpy.zeros((X.shape[0],))
 
+        # Inicializa threshold
+        self.b = 0
+
         samples_violating_kkt_conditions = 0
         loop_all_samples = True
+
+        print("initial accuracy %f" % self.accuracy())
 
         # Alterna entre todas amostras e amostras non-bound (0 < alpha < C)
         # até que todas amostras obedeçam as condições de KKT por um epsilon  
         while samples_violating_kkt_conditions > 0 or loop_all_samples:
+            samples_violating_kkt_conditions = 0
             
             partition = range(self.alph.size)
             if not loop_all_samples:
@@ -64,11 +70,14 @@ class SVM(BaseEstimator, ClassifierMixin):
 
     def examine_sample(self, sample1):
         """Retorna 1 caso otimização foi possível, do contrário retorna 0."""
+        X1 = self.X[sample1,:]
         y1 = self.y[sample1]
         alph1 = self.alph[sample1]
         E1 = self.E(sample1, recalc=(alph1 == 0 or alph1 == self.C))
+        f1 = self.f(self.X[sample1,:])
         r1 = E1*y1
-        #print("examine_sample %d, y = %d, alph2 = %f" % (sample2, y2, alph2))
+        print("examine_sample %d, X1 = %s, y = %d, f1 = %f, alph1 = %f, b = %f, E1 = %f, r1 = %f," % (sample1, X1, y1, f1, alph1, self.b, E1, r1))
+        print("cond1 = %s cond2 = %s" % ((r1 < -self.tol and alph1 < self.C), (r1 > self.tol and alph1 > 0)))
 
         if (r1 < -self.tol and alph1 < self.C) or (r1 > self.tol and alph1 > 0):
             # Há 3 estratégias para selecionar a segunda amostra:
@@ -170,6 +179,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         t1 = y1 * (a1 - alph1)
         t2 = y2 * (a2 - alph2)
         for sample in non_bound_partition:
+            #self.E(sample, recalc)
             self.error_cache[sample] = t1 * self.kernel_func(sample1, sample) + t2 * self.kernel_func(sample2, sample) - self.delta_b
 
         self.error_cache[sample1] = 0
@@ -199,6 +209,8 @@ class SVM(BaseEstimator, ClassifierMixin):
         X2 = self.X[sample2,:]
         alpha2 = self.alph[sample2]
         E2 = self.E(sample2)
+
+        bnew = self.b
 
         if 0 < a1 < self.C:
             bnew = self.b + E1 + y1 * (a1 - alpha1) * k11 + y2 * (a2 - alpha2) * k12
@@ -255,7 +267,11 @@ class SVM(BaseEstimator, ClassifierMixin):
         return y
 
     def accuracy(self):
+        func = lambda prediction: self.classes[0] if prediction == 1 else self.classes[1]
+        y_true = list(map(func, self.y))
         y_pred = numpy.apply_along_axis(self.f, 1, self.X)
         y_pred = list(map(int, numpy.sign(y_pred)))
-        func = lambda prediction: self.classes[0] if prediction == 1 else self.classes[1]
-        return accuracy_score(list(map(func, self.y)), list(map(func, y_pred)))
+        y_pred = list(map(func, y_pred))
+        #print("y_true = %s" % y_true)
+        #print("y_pred = %s" % y_pred)
+        return accuracy_score(y_true, y_pred)
