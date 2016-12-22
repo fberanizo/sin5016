@@ -9,11 +9,12 @@ from sklearn.metrics.pairwise import rbf_kernel
 class SVM(BaseEstimator, ClassifierMixin):
     """Classe que implementa um SVM."""
 
-    def __init__(self, C, kernel='rbf', gamma=0, degree=2):
+    def __init__(self, C, kernel='rbf', gamma=0, degree=2, coef0=0):
         self.C = C
         self.kernel = kernel
-        self.gamma = gamma # se gamma == 0, gamma = 1/samples_size
+        self.gamma = gamma # se gamma == 0, gamma = 1/input_size
         self.degree = degree
+        self.coef0 = coef0
         self.tol = 1e-3 # ksi
         self.max_iterations = 10000
 
@@ -28,7 +29,7 @@ class SVM(BaseEstimator, ClassifierMixin):
             raise Exception('Multiclass SVM not implemented')
 
         if self.gamma == 0:
-            self.gamma = float(samples_size)
+            self.gamma = 1/float(input_size)
 
         scaler = MinMaxScaler((-1,1))
         self.X = scaler.fit_transform(X)
@@ -48,14 +49,9 @@ class SVM(BaseEstimator, ClassifierMixin):
         # Repete até que não haja mudanças nos multiplicadores por 2 iterações
         while iterations_without_improvements < 2 and remaining_iterations > 0:
             changed_alphas = 0
-            #print("===============")
-            #print("Starting iteration")
-            #print("===============")
-
             for sample1 in range(self.alph.size):
                 X1, y1, alph1 = self.X[sample1,:], self.y[sample1], self.alph[sample1]
                 E1 = self.error_cache[sample1] if 0 < alph1 < self.C else self.f(X1) - y1
-
                 r1 = E1*y1
                 if (r1 < -self.tol and alph1 < self.C) or (r1 > self.tol and alph1 > 0):
                     # Tenta heurística 1: sample2 que maximiza |E1-E2|
@@ -73,18 +69,6 @@ class SVM(BaseEstimator, ClassifierMixin):
                 iterations_without_improvements = 0
 
             remaining_iterations -= 1
-
-            print("===============")
-            print("remaining_iterations %d" % remaining_iterations)
-            print("===============")
-
-        # Exibe vetores suporte
-        alpha_idx = numpy.where(self.alph > 0)[0]
-        support_vectors = self.X[alpha_idx, :]
-
-        print("===============")
-        print("support_vectors %s" % support_vectors)
-        print("===============")
         return self
 
     def predict(self, X):
@@ -189,18 +173,16 @@ class SVM(BaseEstimator, ClassifierMixin):
                 X_i, y_i, alph_i = self.X[sample_i,:], self.y[sample_i], self.alph[sample_i]
                 if alph_i > 0:
                     value += alph_i * y_i * self.kernel_func(X_i, X)
-            #print("value = %f, b = %f" % (value, self.b))
             return value - self.b
-            #return sum(numpy.multiply(numpy.multiply(self.y, self.alph), numpy.apply_along_axis(self.kernel_func, 1, self.X, X)) + self.b)
 
     def kernel_func(self, Xj, X):
         """Calcula saída da função kernel."""
         if self.kernel == 'linear':
             return numpy.dot(Xj, X.T)
         elif self.kernel == 'polynomial':
-            return numpy.dot(Xj, X.T) ** self.degree
+            return numpy.power(self.gamma * numpy.dot(Xj, X.T) + self.coef0, self.degree)
         elif self.kernel == 'rbf':
-            return numpy.exp(-self.gamma * numpy.linalg.norm(Xj - X) ** 2)
+            return numpy.exp(-self.gamma * numpy.power(numpy.linalg.norm(Xj - X), 2))
         else:
             raise Exception('Kernel %s not implemented' % self.kernel)
 
@@ -217,6 +199,4 @@ class SVM(BaseEstimator, ClassifierMixin):
         y_pred = numpy.apply_along_axis(self.f, 1, self.X)
         y_pred = list(map(int, numpy.sign(y_pred)))
         y_pred = list(map(func, y_pred))
-        #print("y_true = %s" % y_true)
-        #print("y_pred = %s" % y_pred)
         return accuracy_score(y_true, y_pred)

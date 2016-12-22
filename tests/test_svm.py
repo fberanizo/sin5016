@@ -26,16 +26,22 @@ class SVMTestSuite(unittest.TestCase):
         X = vectorizer.fit_transform(X)
         y = label_binarize(y, classes=numpy.unique(y), neg_label=-1, pos_label=1)[:,0]
 
-        X_train, X_test, y_train, y_test = train_test_split(X[100:], y[100:], test_size=0.2)
+        p = numpy.random.permutation(y.size)
+        X, y = X[p], y[p]
+
+        X_train, X_test, y_train, y_test = train_test_split(X[:100,:], y[:100], test_size=0.25)
 
         X_train = numpy.array([[0,1],[0,2],[1,2],[1,0],[2,0],[2,1]])
         y_train = numpy.array([-1,-1,-1,1,1,1])
         X_test = numpy.array([[3,0],[-1,0],[0,-1],[0,5]])
         y_test = numpy.array([1,-1,1,-1])
 
-        #classifier = SVC(kernel='rbf', C=1.0)
-        classifier = svm.SVM(C=1.0, kernel='rbf')
+        classifier = svm.SVM(kernel='rbf', C=0.1)
         classifier.fit(X_train, y_train)
+
+        y_pred = classifier.predict(X_test)
+        print(y_pred)
+        print(classification_report(y_test, y_pred))
         #joblib.dump(classifier, 'svm-linear.pkl') 
 
         x_min, x_max = X_train[:, 0].min() - 1, X_train[:, 0].max() + 1
@@ -52,17 +58,13 @@ class SVMTestSuite(unittest.TestCase):
         plt.xlim(xx.min(), xx.max())
         plt.ylim(yy.min(), yy.max())
         plt.show()
-        
-        #y_pred = classifier.predict(X_train)
-        #print(y_pred)
-        #print(classification_report(y_train, y_pred))
 
         #classifier = SVC(kernel='linear', C=1.0)
         #classifier.fit(X_train, y_train)
         
-        #y_pred = classifier.predict(X_train)
+        #y_pred = classifier.predict(X_test)
         #print(y_pred)
-        #print(classification_report(y_train, y_pred))
+        #print(classification_report(y_test, y_pred))
 
         assert True
 
