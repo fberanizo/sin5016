@@ -2,6 +2,7 @@
 
 import numpy, hashlib
 from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, log_loss
+from sklearn.preprocessing import MinMaxScaler, label_binarize
 
 class MLP(object):
     """Class that implements a multilayer perceptron (MLP)"""
@@ -14,6 +15,10 @@ class MLP(object):
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
+        scaler = MinMaxScaler((-1,1))
+        X = scaler.fit_transform(X)
+        y = label_binarize(y, classes=numpy.unique(y))
+
         self.input_layer_size = X.shape[1]
         self.output_layer_size = y.shape[1]
         epoch = 1
@@ -56,9 +61,9 @@ class MLP(object):
             self.J.append(error)
 
             
-            print 'Epoch: ' + str(epoch)
+            #print('Epoch: ' + str(epoch))
             #print 'Learning Rate: ' + str(self.learning_rate)
-            print 'Error: ' + str(error)
+            #print('Error: ' + str(error))
 
             epoch += 1
 

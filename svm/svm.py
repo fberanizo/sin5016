@@ -2,7 +2,7 @@
 
 import numpy, random, time
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.metrics import accuracy_score
 from sklearn.metrics.pairwise import rbf_kernel
 
@@ -33,7 +33,8 @@ class SVM(BaseEstimator, ClassifierMixin):
 
         scaler = MinMaxScaler((-1,1))
         self.X = scaler.fit_transform(X)
-        self.y = y
+        self.encoder = LabelEncoder()
+        self.y = self.encoder.fit_transform(y)
 
         # Inicializa multiplicadores de Lagrange
         self.alph = numpy.zeros((X.shape[0],))  
@@ -77,8 +78,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         for x_row in X:
             y_row = self.classes[1] if self.f(x_row) >= 0 else self.classes[0]
             y.append(y_row)
-        y = numpy.asarray(y)
-        return y
+        return self.encoder.inverse_transform(numpy.asarray(y))
 
     def try_heuristic_1(self, sample1, E1):
         """Heurística que escolhe sample2 maximizando |E1-E2|."""

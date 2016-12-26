@@ -2,7 +2,7 @@
 
 from context import svm
 
-import unittest, numpy
+import unittest, numpy, mlp
 from os import listdir
 from os.path import isfile, join
 import matplotlib.pyplot as plt
@@ -35,10 +35,16 @@ class SDUMLAHTMTestSuite(unittest.TestCase):
             # dataset['coef'][0][0][SUB-BANDA][0,LEVEL], SUB-BANDAS = [0..3] (LL, LH, HL, HH)
             data = numpy.ravel(dataset['coef'][0][0][band_dict[band]][0,level])
             X.append(data)
-            y.append(int(files[0].split('.')[0][1:]))
+            y.append(numpy.random.randint(1, 4))
+            #y.append(int(files[0].split('.')[0][1:]))
         X, y = numpy.array(X), numpy.array(y)
+        print(y)
 
-        #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+        clf = mlp.MLP(hidden_layer_size=3, learning_rate=0.2)
+        clf.fit(X_train, y_train)
+        #clf = svm.SVM(kernel='linear', C=1)
+        #clf.fit(X_train, y_train)
 
         assert True
 
