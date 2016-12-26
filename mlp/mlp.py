@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import numpy, hashlib
+import numpy, hashlib, time
 from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, log_loss
 from sklearn.preprocessing import MinMaxScaler, label_binarize
 
 class MLP(object):
     """Class that implements a multilayer perceptron (MLP)"""
-    def __init__(self, hidden_layer_size=3, learning_rate=0.2, max_epochs=10000):
+    def __init__(self, hidden_layer_size=3, max_epochs=10000):
         self.hidden_layer_size = hidden_layer_size
-        self.learning_rate = learning_rate
         self.max_epochs = max_epochs
         self.auc = 0.5
         self.cache = {}
@@ -47,23 +46,21 @@ class MLP(object):
             for self.X, self.y in zip(X, y):
                 self.X = numpy.array([self.X])
                 self.y = numpy.array([self.y])
-                error, gradients = self.single_step(self.X, self.y)
+                error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
                 total_error = numpy.append(total_error, error)
-                dJdW1 = gradients[0]
-                dJdW2 = gradients[1]
 
+                #alpha1, alpha2 = self.learning_rate(self.X, self.y, self.W1, self.W2, dJdW1, dJdW2)
+                alpha1, alpha2 = error/10.0, error/10.0
                 # Calculates new weights
-                self.W1 = self.W1 - self.learning_rate * dJdW1
-                self.W2 = self.W2 - self.learning_rate * dJdW2
+                self.W1 -= alpha1 * dJdW1
+                self.W2 -= alpha2 * dJdW2
 
             # Saves error for plot
             error = total_error.mean()
             self.J.append(error)
 
-            
-            #print('Epoch: ' + str(epoch))
-            #print 'Learning Rate: ' + str(self.learning_rate)
-            #print('Error: ' + str(error))
+            print('Epoch: ' + str(epoch))
+            print('Error: ' + str(error))
 
             epoch += 1
 
@@ -104,23 +101,23 @@ class MLP(object):
 
         return errors
 
-    def single_step(self, X, y):
+    def single_step(self, X, y, W1, W2):
         """Runs single step training method"""
-        self.Y = self.forward(X)
+        self.Y = self.forward(X, W1, W2)
         cost = self.cost(self.Y, y)
-        gradients = self.backpropagate(X, y)
+        gradients = self.backpropagate(X, y, W1, W2)
 
         return cost, gradients
 
-    def forward(self, X):
+    def forward(self, X, W1, W2):
         """Passes input values through network and return output values"""
-        self.Zin = numpy.dot(X, self.W1[:-1,:])
-        self.Zin += numpy.dot(numpy.ones((1, 1)), self.W1[-1:,:])
+        self.Zin = numpy.dot(X, W1[:-1,:])
+        self.Zin += numpy.dot(numpy.ones((1, 1)), W1[-1:,:])
         self.Z = self.logistic(self.Zin)
         self.Z = numpy.nan_to_num(self.Z)
 
-        self.Yin = numpy.dot(self.Z, self.W2[:-1,])
-        self.Yin += numpy.dot(numpy.ones((1, 1)), self.W2[-1:,:])
+        self.Yin = numpy.dot(self.Z, W2[:-1,])
+        self.Yin += numpy.dot(numpy.ones((1, 1)), W2[-1:,:])
         Y = self.linear(self.Yin)
         Y = numpy.nan_to_num(Y)
         return Y
@@ -129,13 +126,13 @@ class MLP(object):
         """Calculates network output error"""
         return mean_squared_error(Y, y)
 
-    def backpropagate(self, X, y):
+    def backpropagate(self, X, y, W1, W2):
         """Backpropagates costs through the network"""
         delta3 = numpy.multiply(-(y-self.Y), self.linear_derivative(self.Yin))
         dJdW2 = numpy.dot(self.Z.T, delta3)
         dJdW2 = numpy.append(dJdW2, numpy.dot(numpy.ones((1, 1)), delta3), axis=0)
 
-        delta2 = numpy.dot(delta3, self.W2[:-1,:].T) * self.logistic_derivative(self.Zin)
+        delta2 = numpy.dot(delta3, W2[:-1,:].T) * self.logistic_derivative(self.Zin)
         dJdW1 = numpy.dot(X.T, delta2)
         dJdW1 = numpy.append(dJdW1, numpy.dot(numpy.ones((1, 1)), delta2), axis=0)
 
@@ -169,3 +166,53 @@ class MLP(object):
     def linear_derivative(self, z):
         """Derivarive linear function"""
         return 1
+
+    def learning_rate(self, X, y, W1, W2, dJdW1, dJdW2):
+        """Retorna valor da taxa de aprendizado, calculado utilizando o método da bisseção."""
+        alpha1_l, alpha2_l = 0.0, 0.0
+        alpha1_u, alpha2_u = self.guess_alpha(X, y, W1, W2, dJdW1, dJdW2)
+        alpha1_m, alpha2_m = (alpha1_l + alpha1_u) / 2.0, (alpha2_l + alpha2_u) / 2.0
+        error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1_m * dJdW1, W2 + alpha2_m * dJdW2)
+        h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
+        remaining_iterations = 20
+        #print("alpha1_m %f, alpha2_m %f" % (alpha1_m, alpha2_m))
+        #print("h1 %f, h2 %f" % (h1, h2))
+        #print("Iterating to find optimal alpha")
+        while (numpy.absolute(h1) > 1e-5 or numpy.absolute(h2) > 1e-5) and remaining_iterations > 0:
+            if h1 > 0:
+                alpha1_u = alpha1_m
+            else:
+                alpha1_l = alpha1_m
+            if h2 > 0:
+                alpha2_u = alpha2_m
+            else:
+                alpha2_l = alpha2_m
+            alpha1_m, alpha2_m = (alpha1_l + alpha1_u) / 2.0, (alpha2_l + alpha2_u) / 2.0
+            error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1_m * dJdW1, W2 + alpha2_m * dJdW2)
+            h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
+            #print("alpha1_m %f, alpha2_m %f" % (alpha1_m, alpha2_m))
+            #print("h1 %f, h2 %f" % (h1, h2))
+            #time.sleep(2)
+            remaining_iterations -= 1
+        #print("alpha1_m %f, alpha2_m %f" % (alpha1_m, alpha2_m))
+        return alpha1_m, alpha2_m
+
+    def guess_alpha(self, X, y, W1, W2, dJdW1, dJdW2):
+        """Sorteia um alfa para limite superior."""
+        alpha1, alpha2 = 1.0, 1.0
+        #print("Guessing initial alphas")
+        error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2 + alpha2 * dJdW2)
+        h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
+        remaining_iterations = 5
+        #print("alpha1 %f, alpha2 %f" % (alpha1, alpha2))
+        #print("h1 %f, h2 %f" % (h1, h2))
+        while h1 < 0 or h2 < 0 and remaining_iterations > 0:
+            alpha1 *= 2.0 if h1 < 0 else 1.0
+            alpha2 *= 2.0 if h2 < 0 else 1.0
+            error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2 + alpha2 * dJdW2)
+            h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
+            #print("alpha1 %f, alpha2_m %f" % (alpha1, alpha2))
+            #print("h1 %f, h2 %f" % (h1, h2))
+            #time.sleep(2)
+            remaining_iterations -= 1
+        return alpha1, alpha2

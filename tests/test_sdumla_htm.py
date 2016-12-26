@@ -41,7 +41,7 @@ class SDUMLAHTMTestSuite(unittest.TestCase):
         print(y)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
-        clf = mlp.MLP(hidden_layer_size=3, learning_rate=0.2)
+        clf = mlp.MLP(hidden_layer_size=3)
         clf.fit(X_train, y_train)
         #clf = svm.SVM(kernel='linear', C=1)
         #clf.fit(X_train, y_train)
