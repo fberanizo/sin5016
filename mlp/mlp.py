@@ -30,12 +30,11 @@ class MLP(object):
         self.W1_history = []
         self.W2_history = []
 
-        epsilon = 0.001
         error = 1
         self.J = [] # error
 
         # Repeats until error is small enough or max epochs is reached
-        while error > epsilon and epoch <= self.max_epochs:
+        while error > 1e-2 and epoch <= self.max_epochs:
             total_error = numpy.array([])
 
             # Saves old weights
@@ -49,74 +48,21 @@ class MLP(object):
                 error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
                 total_error = numpy.append(total_error, error)
 
+                #alpha1, alpha2 = self.bisection(self.X, self.y, self.W1, self.W2, dJdW1, dJdW2)
+
+                #self.W1 += alpha1 * -dJdW1
+                #self.W2 += alpha2 * -dJdW2
+
                 # Algoritmo de gradiente conjugado
-                self.d1, self.d2 = self.g1, self.g2 = -dJdW1, -dJdW2
-                self.mg1, self.mg2 = numpy.mean(self.g1, axis=1), numpy.mean(self.g2, axis=1)
+                d1, d2 = g1, g2 = -dJdW1, -dJdW2
+                self.mg1, self.mg2 = numpy.mean(g1, axis=1), numpy.mean(g2, axis=1)
 
-                # No passo n, usar a busca em linha para encontrar eta(n) que minimiza
                 while numpy.linalg.norm(self.mg1) > 1e-5 or numpy.linalg.norm(self.mg2) > 1e-5:
-                    print("mg1 norm %f" % numpy.linalg.norm(self.mg1))
-                    # Utiliza método da bisseção para encontrar alfa1 ótimo
-                    alpha_l, alpha_u = 0.0, 1.0
-                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha_u * self.d1, self.W2)
-                    hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
-                    #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
-                    #time.sleep(2)
-                    while hlinha1 < -1e-5:
-                        alpha_u *= 2.0
-                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha_u * self.d1, self.W2)
-                        hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
-                        #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
-                        #time.sleep(2)
-
-                    alpha1 = (alpha_l + alpha_u) / 2.0
-                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha1 * self.d1, self.W2)
-                    hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
-                    #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
-                    #time.sleep(2)
-                    while abs(hlinha1) > 1e-5:
-                        if hlinha1 > 0:
-                            alpha_u = alpha1
-                        else:
-                            alpha_l = alpha1
-                        alpha1 = (alpha_l + alpha_u) / 2.0
-                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha1 * self.d1, self.W2)
-                        hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
-                        #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
-                        #time.sleep(2)
-
-                    # Utiliza método da bisseção para encontrar alfa2 ótimo
-                    alpha_l, alpha_u = 0.0, 1.0
-                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha_u * self.d2)
-                    hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
-                    #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
-                    #time.sleep(2)
-                    while hlinha2 < -1e-5:
-                        alpha_u *= 2.0
-                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha_u * self.d2)
-                        hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
-                        #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
-                        #time.sleep(2)
-                    
-                    alpha2 = (alpha_l + alpha_u) / 2.0
-                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha2 * self.d2)
-                    hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
-                    #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
-                    #time.sleep(2)
-                    while abs(hlinha2) > 1e-5:
-                        if hlinha2 > 0:
-                            alpha_u = alpha2
-                        else:
-                            alpha_l = alpha2
-                        alpha2 = (alpha_l + alpha_u) / 2.0
-                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha2 * self.d2)
-                        hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
-                        #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
-                        #time.sleep(2)
-
+                    # Encontra alfa que otimiza passo
+                    alpha1, alpha2 = self.bisection(self.X, self.y, self.W1, self.W2, d1, d2)
                     # Atualiza o vetor peso
-                    self.W1 += alpha1 * self.d1
-                    self.W2 += alpha2 * self.d2
+                    self.W1 += alpha1 * d1
+                    self.W2 += alpha2 * d2
                     # Usa backpropagation para computar o vetor gradiente 
                     error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
                     g1, g2 = -dJdW1, -dJdW2
@@ -125,10 +71,9 @@ class MLP(object):
                     beta1 = max(0, numpy.dot(mg1.T, mg1 - self.mg1) / numpy.dot(self.mg1.T, self.mg1))
                     beta2 = max(0, numpy.dot(mg2.T, mg2 - self.mg2) / numpy.dot(self.mg2.T, self.mg2))
                     # Atualiza a direção conjugada
-                    d1 = g1 + beta1 * self.d1
-                    d2 = g2 + beta2 * self.d2
+                    d1, d2 = g1 + beta1 * d1, g2 + beta2 * d2
                     # Salva valores para utilização no próximo passo
-                    self.d1, self.d2, self.g1, self.g2, self.mg1, self.mg2 = d1, d2, g1, g2, mg1, mg2
+                    self.mg1, self.mg2 = mg1, mg2
 
             # Saves error for plot
             error = total_error.mean()
@@ -242,3 +187,62 @@ class MLP(object):
         """Derivarive linear function"""
         return 1
 
+    def bisection(self, X, y, W1, W2, dJdW1, dJdW2):
+        """Estima alfas ótimos pelo método da bisseção"""
+        alpha_l, alpha_u = 0.0, 1.0
+        error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
+        hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+        #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
+        #time.sleep(2)
+        while hlinha1 < -1e-5:
+            alpha_u *= 2.0
+            error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
+            hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+            #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
+            #time.sleep(2)
+
+        alpha1 = (alpha_l + alpha_u) / 2.0
+        error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
+        hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+        #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
+        #time.sleep(2)
+        while abs(hlinha1) > 1e-5 and abs(alpha1 - alpha_l) > 1e-5 and abs(alpha1 - alpha_u) > 1e-5:
+            if hlinha1 > 0:
+                alpha_u = alpha1
+            else:
+                alpha_l = alpha1
+            alpha1 = (alpha_l + alpha_u) / 2.0
+            error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
+            hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+            #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
+            #time.sleep(2)
+
+        # Utiliza método da bisseção para encontrar alfa2 ótimo
+        alpha_l, alpha_u = 0.0, 1.0
+        error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
+        hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+        #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
+        #time.sleep(2)
+        while hlinha2 < -1e-5:
+            alpha_u *= 2.0
+            error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
+            hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+            #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
+            #time.sleep(2)
+        
+        alpha2 = (alpha_l + alpha_u) / 2.0
+        error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
+        hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+        #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
+        #time.sleep(2)
+        while abs(hlinha2) > 1e-5 and abs(alpha2 - alpha_l) > 1e-5 and abs(alpha2 - alpha_u) > 1e-5:
+            if hlinha2 > 0:
+                alpha_u = alpha2
+            else:
+                alpha_l = alpha2
+            alpha2 = (alpha_l + alpha_u) / 2.0
+            error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
+            hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+            #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
+            #time.sleep(2)
+        return alpha1, alpha2
