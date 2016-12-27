@@ -49,11 +49,86 @@ class MLP(object):
                 error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
                 total_error = numpy.append(total_error, error)
 
-                #alpha1, alpha2 = self.learning_rate(self.X, self.y, self.W1, self.W2, dJdW1, dJdW2)
-                alpha1, alpha2 = error/10.0, error/10.0
-                # Calculates new weights
-                self.W1 -= alpha1 * dJdW1
-                self.W2 -= alpha2 * dJdW2
+                # Algoritmo de gradiente conjugado
+                self.d1, self.d2 = self.g1, self.g2 = -dJdW1, -dJdW2
+                self.mg1, self.mg2 = numpy.mean(self.g1, axis=1), numpy.mean(self.g2, axis=1)
+
+                # No passo n, usar a busca em linha para encontrar eta(n) que minimiza
+                while numpy.linalg.norm(self.mg1) > 1e-5 or numpy.linalg.norm(self.mg2) > 1e-5:
+                    print("mg1 norm %f" % numpy.linalg.norm(self.mg1))
+                    # Utiliza método da bisseção para encontrar alfa1 ótimo
+                    alpha_l, alpha_u = 0.0, 1.0
+                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha_u * self.d1, self.W2)
+                    hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
+                    #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
+                    #time.sleep(2)
+                    while hlinha1 < -1e-5:
+                        alpha_u *= 2.0
+                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha_u * self.d1, self.W2)
+                        hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
+                        #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
+                        #time.sleep(2)
+
+                    alpha1 = (alpha_l + alpha_u) / 2.0
+                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha1 * self.d1, self.W2)
+                    hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
+                    #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
+                    #time.sleep(2)
+                    while abs(hlinha1) > 1e-5:
+                        if hlinha1 > 0:
+                            alpha_u = alpha1
+                        else:
+                            alpha_l = alpha1
+                        alpha1 = (alpha_l + alpha_u) / 2.0
+                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1 + alpha1 * self.d1, self.W2)
+                        hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(self.d1, axis=1))
+                        #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
+                        #time.sleep(2)
+
+                    # Utiliza método da bisseção para encontrar alfa2 ótimo
+                    alpha_l, alpha_u = 0.0, 1.0
+                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha_u * self.d2)
+                    hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
+                    #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
+                    #time.sleep(2)
+                    while hlinha2 < -1e-5:
+                        alpha_u *= 2.0
+                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha_u * self.d2)
+                        hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
+                        #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
+                        #time.sleep(2)
+                    
+                    alpha2 = (alpha_l + alpha_u) / 2.0
+                    error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha2 * self.d2)
+                    hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
+                    #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
+                    #time.sleep(2)
+                    while abs(hlinha2) > 1e-5:
+                        if hlinha2 > 0:
+                            alpha_u = alpha2
+                        else:
+                            alpha_l = alpha2
+                        alpha2 = (alpha_l + alpha_u) / 2.0
+                        error, (hlinha1, hlinha2) = self.single_step(self.X, self.y, self.W1, self.W2 + alpha2 * self.d2)
+                        hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(self.d2, axis=1))
+                        #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
+                        #time.sleep(2)
+
+                    # Atualiza o vetor peso
+                    self.W1 += alpha1 * self.d1
+                    self.W2 += alpha2 * self.d2
+                    # Usa backpropagation para computar o vetor gradiente 
+                    error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
+                    g1, g2 = -dJdW1, -dJdW2
+                    mg1, mg2 = numpy.mean(g1, axis=1), numpy.mean(g2, axis=1)
+                    # Usa o método de Polak-Ribiére para calcular beta
+                    beta1 = max(0, numpy.dot(mg1.T, mg1 - self.mg1) / numpy.dot(self.mg1.T, self.mg1))
+                    beta2 = max(0, numpy.dot(mg2.T, mg2 - self.mg2) / numpy.dot(self.mg2.T, self.mg2))
+                    # Atualiza a direção conjugada
+                    d1 = g1 + beta1 * self.d1
+                    d2 = g2 + beta2 * self.d2
+                    # Salva valores para utilização no próximo passo
+                    self.d1, self.d2, self.g1, self.g2, self.mg1, self.mg2 = d1, d2, g1, g2, mg1, mg2
 
             # Saves error for plot
             error = total_error.mean()
@@ -167,52 +242,3 @@ class MLP(object):
         """Derivarive linear function"""
         return 1
 
-    def learning_rate(self, X, y, W1, W2, dJdW1, dJdW2):
-        """Retorna valor da taxa de aprendizado, calculado utilizando o método da bisseção."""
-        alpha1_l, alpha2_l = 0.0, 0.0
-        alpha1_u, alpha2_u = self.guess_alpha(X, y, W1, W2, dJdW1, dJdW2)
-        alpha1_m, alpha2_m = (alpha1_l + alpha1_u) / 2.0, (alpha2_l + alpha2_u) / 2.0
-        error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1_m * dJdW1, W2 + alpha2_m * dJdW2)
-        h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
-        remaining_iterations = 20
-        #print("alpha1_m %f, alpha2_m %f" % (alpha1_m, alpha2_m))
-        #print("h1 %f, h2 %f" % (h1, h2))
-        #print("Iterating to find optimal alpha")
-        while (numpy.absolute(h1) > 1e-5 or numpy.absolute(h2) > 1e-5) and remaining_iterations > 0:
-            if h1 > 0:
-                alpha1_u = alpha1_m
-            else:
-                alpha1_l = alpha1_m
-            if h2 > 0:
-                alpha2_u = alpha2_m
-            else:
-                alpha2_l = alpha2_m
-            alpha1_m, alpha2_m = (alpha1_l + alpha1_u) / 2.0, (alpha2_l + alpha2_u) / 2.0
-            error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1_m * dJdW1, W2 + alpha2_m * dJdW2)
-            h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
-            #print("alpha1_m %f, alpha2_m %f" % (alpha1_m, alpha2_m))
-            #print("h1 %f, h2 %f" % (h1, h2))
-            #time.sleep(2)
-            remaining_iterations -= 1
-        #print("alpha1_m %f, alpha2_m %f" % (alpha1_m, alpha2_m))
-        return alpha1_m, alpha2_m
-
-    def guess_alpha(self, X, y, W1, W2, dJdW1, dJdW2):
-        """Sorteia um alfa para limite superior."""
-        alpha1, alpha2 = 1.0, 1.0
-        #print("Guessing initial alphas")
-        error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2 + alpha2 * dJdW2)
-        h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
-        remaining_iterations = 5
-        #print("alpha1 %f, alpha2 %f" % (alpha1, alpha2))
-        #print("h1 %f, h2 %f" % (h1, h2))
-        while h1 < 0 or h2 < 0 and remaining_iterations > 0:
-            alpha1 *= 2.0 if h1 < 0 else 1.0
-            alpha2 *= 2.0 if h2 < 0 else 1.0
-            error, (new_dJdW1, new_dJdW2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2 + alpha2 * dJdW2)
-            h1, h2 = numpy.dot(numpy.mean(new_dJdW1).T, numpy.mean(dJdW1)), numpy.dot(numpy.mean(new_dJdW2).T, numpy.mean(dJdW2))
-            #print("alpha1 %f, alpha2_m %f" % (alpha1, alpha2))
-            #print("h1 %f, h2 %f" % (h1, h2))
-            #time.sleep(2)
-            remaining_iterations -= 1
-        return alpha1, alpha2
