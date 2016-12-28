@@ -13,37 +13,28 @@ class MLP(object):
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
-        self.input_layer_size = X.shape[1]
-        self.output_layer_size = y.shape[1]
-
         # Normaliza valores e adiciona coluna de bias
         scaler = MinMaxScaler((-1,1))
         self.X = numpy.c_[scaler.fit_transform(X), numpy.ones(X.shape[0])]
         self.y = label_binarize(y, classes=numpy.unique(y))
 
+        self.input_layer_size = self.X.shape[1] - 1
+        self.output_layer_size = self.y.shape[1]
+
         # Inicializa pesos da rede
-        self.W1 = numpy.random.rand(self.hidden_layer_size, 1 + self.input_layer_size)
-        self.W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
-        
-        # Useful for loss calculation
-        self.W1_history = []
-        self.W2_history = []
-        self.J = [] # erro
+        W1 = numpy.random.rand(self.hidden_layer_size, 1 + self.input_layer_size)
+        W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
 
         epoch, error = 1, 1
         # Repete até que o erro seja pequeno, ou o máximo de época é alcançado
         while error > 1e-2 and epoch <= self.max_epochs:
             total_error = []
 
-            # Saves old weights
-            self.W1_history.append(self.W1)
-            self.W2_history.append(self.W2)
-
             # Treinamento padrão-a-padrão
             for X, y in zip(self.X, self.y):
-                X, y = numpy.array([self.X]), numpy.array([y])
-                Y, J, dJdW1, dJdW2 = self.single_step(self.X, self.y, self.W1, self.W2)
-                total_error = numpy.append(total_error, J)
+                X, y = numpy.array([X]), numpy.array([y])
+                Y, J, dJdW1, dJdW2 = self.single_step(X, y, W1, W2)
+                total_error.append(mean_squared_error(y, Y))
 
                 # Algoritmo de gradiente conjugado
                 d1, d2 = g1, g2 = -dJdW1, -dJdW2
@@ -51,12 +42,12 @@ class MLP(object):
 
                 while numpy.linalg.norm(self.mg1) > 1e-5 or numpy.linalg.norm(self.mg2) > 1e-5:
                     # Encontra alfa que otimiza passo
-                    alpha1, alpha2 = self.bisection(self.X, self.y, self.W1, self.W2, d1, d2)
+                    alpha1, alpha2 = self.bisection(X, y, W1, W2, d1, d2)
                     # Atualiza o vetor peso
-                    self.W1 += alpha1 * d1
-                    self.W2 += alpha2 * d2
+                    W1 += alpha1 * d1
+                    W2 += alpha2 * d2
                     # Usa backpropagation para computar o vetor gradiente 
-                    error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
+                    Y, J, dJdW1, dJdW2 = self.single_step(X, y, W1, W2)
                     g1, g2 = -dJdW1, -dJdW2
                     mg1, mg2 = numpy.mean(g1, axis=1), numpy.mean(g2, axis=1)
                     # Usa o método de Polak-Ribiére para calcular beta
@@ -67,9 +58,8 @@ class MLP(object):
                     # Salva valores para utilização no próximo passo
                     self.mg1, self.mg2 = mg1, mg2
 
-            # Saves error for plot
-            error = total_error.mean()
-            self.J.append(error)
+            # Calcula erro médio para época
+            error = numpy.array(total_error).mean()
 
             print('Epoch: ' + str(epoch))
             print('Error: ' + str(error))
@@ -135,64 +125,63 @@ class MLP(object):
 
     def backpropagate(self, X, y, J, Y, Yin, Z, Zin, W1, W2):
         """Propaga erros pela rede."""
-        dJdW2 = numpy.dot(J, self.linear_derivative(self.Yin))
-        dJdW2 = numpy.dot(dJdW2, self.Z)
+        delta2 = numpy.multiply(J, self.linear_derivative(Yin))
+        dJdW2 = delta2.T.dot(Z)
+        delta1 = numpy.multiply(delta2.dot(W2)[:,:-1], self.logistic_derivative(Zin))
+        dJdW1 = delta1.T.dot(X)
 
-        delta3 = numpy.multiply(-(y-self.Y), self.linear_derivative(self.Yin))
-        dJdW2 = numpy.dot(self.Z.T, delta3)
-        dJdW2 = numpy.append(dJdW2, numpy.dot(numpy.ones((1, 1)), delta3), axis=0)
+        #delta3 = numpy.multiply(-(y-Y), self.linear_derivative(Yin))
+        #dJdW2 = numpy.dot(Z.T, delta3)
+        #dJdW2 = numpy.append(dJdW2, numpy.dot(numpy.ones((1, 1)), delta3), axis=0)
 
-        delta2 = numpy.dot(delta3, W2[:-1,:].T) * self.logistic_derivative(self.Zin)
-        dJdW1 = numpy.dot(X.T, delta2)
-        dJdW1 = numpy.append(dJdW1, numpy.dot(numpy.ones((1, 1)), delta2), axis=0)
+        #delta2 = numpy.dot(delta3, W2[:-1,:].T) * self.logistic_derivative(Zin)
+        #dJdW1 = numpy.dot(X.T, delta2)
+        #dJdW1 = numpy.append(dJdW1, numpy.dot(numpy.ones((1, 1)), delta2), axis=0)
 
         return dJdW1, dJdW2
 
     def logistic(self, z):
-        """Apply logistic activation function"""
-        h = hashlib.sha1(z.view(numpy.uint8)).hexdigest()
-        if h not in self.cache:
-            self.cache[h] = 1 / (1 + numpy.exp(-z))
-        return self.cache[h]
+        """Aplica função de ativação logística (sigmóide)."""
+        return 1 / (1 + numpy.exp(-z))
 
     def logistic_derivative(self, z):
-        """Derivative of logistic function: f'(x) = f(x).(1-f(x))"""
+        """Derivada da função logística: f'(x) = f(x).(1-f(x))."""
         logistic = self.logistic(z)
         return numpy.multiply(logistic, numpy.ones(z.shape) - logistic)
 
     def hyperbolic_tangent(self, z):
-        """Apply hyperbolic tangent activation function"""
+        """Aplica função de ativação tangente hiperbólica."""
         return numpy.tanh(z)
 
     def hyperbolic_tangent_derivative(self, z):
-        """Derivative of hyperbolic tangent function: f'(x) = 1 - f(x)²"""
+        """Derivada da função de tangente hiperbólica: f'(x) = 1 - f(x)²."""
         hyperbolic_tangent = self.hyperbolic_tangent(z)
         return numpy.ones(z.shape) - numpy.multiply(hyperbolic_tangent, hyperbolic_tangent)
 
     def linear(self, z):
-        """Apply linear activation function"""
+        """Aplicação função de ativação linear."""
         return z
 
     def linear_derivative(self, z):
-        """Derivarive linear function"""
+        """Derivada da função linear."""
         return 1
 
     def bisection(self, X, y, W1, W2, dJdW1, dJdW2):
-        """Estima alfas ótimos pelo método da bisseção"""
+        """Estima alfas ótimos pelo método da bisseção."""
         alpha_l, alpha_u = 0.0, 1.0
-        error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
+        Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
         hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
         #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
         #time.sleep(2)
         while hlinha1 < -1e-5:
             alpha_u *= 2.0
-            error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
+            Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
             hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
             #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
             #time.sleep(2)
 
         alpha1 = (alpha_l + alpha_u) / 2.0
-        error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
+        Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
         hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
         #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
         #time.sleep(2)
@@ -202,26 +191,26 @@ class MLP(object):
             else:
                 alpha_l = alpha1
             alpha1 = (alpha_l + alpha_u) / 2.0
-            error, (hlinha1, hlinha2) = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
+            Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
             hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
             #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
             #time.sleep(2)
 
         # Utiliza método da bisseção para encontrar alfa2 ótimo
         alpha_l, alpha_u = 0.0, 1.0
-        error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
+        Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
         hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
         #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
         #time.sleep(2)
         while hlinha2 < -1e-5:
             alpha_u *= 2.0
-            error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
+            Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
             hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
             #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
             #time.sleep(2)
         
         alpha2 = (alpha_l + alpha_u) / 2.0
-        error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
+        Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
         hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
         #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
         #time.sleep(2)
@@ -231,7 +220,7 @@ class MLP(object):
             else:
                 alpha_l = alpha2
             alpha2 = (alpha_l + alpha_u) / 2.0
-            error, (hlinha1, hlinha2) = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
+            Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
             hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
             #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
             #time.sleep(2)
