@@ -5,53 +5,45 @@ from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, l
 from sklearn.preprocessing import MinMaxScaler, label_binarize
 
 class MLP(object):
-    """Class that implements a multilayer perceptron (MLP)"""
+    """Classe que implementa um multilayer perceptron (MLP)."""
     def __init__(self, hidden_layer_size=3, max_epochs=10000):
         self.hidden_layer_size = hidden_layer_size
         self.max_epochs = max_epochs
-        self.auc = 0.5
         self.cache = {}
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
-        scaler = MinMaxScaler((-1,1))
-        X = scaler.fit_transform(X)
-        y = label_binarize(y, classes=numpy.unique(y))
-
         self.input_layer_size = X.shape[1]
         self.output_layer_size = y.shape[1]
-        epoch = 1
 
-        # Initialize weights
-        self.W1 = numpy.random.rand(1 + self.input_layer_size, self.hidden_layer_size)
-        self.W2 = numpy.random.rand(1 + self.hidden_layer_size, self.output_layer_size)
+        # Normaliza valores e adiciona coluna de bias
+        scaler = MinMaxScaler((-1,1))
+        self.X = numpy.c_[scaler.fit_transform(X), numpy.ones(X.shape[0])]
+        self.y = label_binarize(y, classes=numpy.unique(y))
+
+        # Inicializa pesos da rede
+        self.W1 = numpy.random.rand(self.hidden_layer_size, 1 + self.input_layer_size)
+        self.W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
         
         # Useful for loss calculation
         self.W1_history = []
         self.W2_history = []
+        self.J = [] # erro
 
-        error = 1
-        self.J = [] # error
-
-        # Repeats until error is small enough or max epochs is reached
+        epoch, error = 1, 1
+        # Repete até que o erro seja pequeno, ou o máximo de época é alcançado
         while error > 1e-2 and epoch <= self.max_epochs:
-            total_error = numpy.array([])
+            total_error = []
 
             # Saves old weights
             self.W1_history.append(self.W1)
             self.W2_history.append(self.W2)
 
-            # For each input instance
-            for self.X, self.y in zip(X, y):
-                self.X = numpy.array([self.X])
-                self.y = numpy.array([self.y])
-                error, (dJdW1, dJdW2) = self.single_step(self.X, self.y, self.W1, self.W2)
-                total_error = numpy.append(total_error, error)
-
-                #alpha1, alpha2 = self.bisection(self.X, self.y, self.W1, self.W2, dJdW1, dJdW2)
-
-                #self.W1 += alpha1 * -dJdW1
-                #self.W2 += alpha2 * -dJdW2
+            # Treinamento padrão-a-padrão
+            for X, y in zip(self.X, self.y):
+                X, y = numpy.array([self.X]), numpy.array([y])
+                Y, J, dJdW1, dJdW2 = self.single_step(self.X, self.y, self.W1, self.W2)
+                total_error = numpy.append(total_error, J)
 
                 # Algoritmo de gradiente conjugado
                 d1, d2 = g1, g2 = -dJdW1, -dJdW2
@@ -122,32 +114,30 @@ class MLP(object):
         return errors
 
     def single_step(self, X, y, W1, W2):
-        """Runs single step training method"""
-        self.Y = self.forward(X, W1, W2)
-        cost = self.cost(self.Y, y)
-        gradients = self.backpropagate(X, y, W1, W2)
+        """Executa um passo do treinamento (forward + backpropagation)."""
+        Y, Yin, Z, Zin = self.forward(X, W1, W2)
+        J = Y - y
+        dJdW1, dJdW2 = self.backpropagate(X, y, J, Y, Yin, Z, Zin, W1, W2)
 
-        return cost, gradients
+        return Y, J, dJdW1, dJdW2
 
     def forward(self, X, W1, W2):
-        """Passes input values through network and return output values"""
-        self.Zin = numpy.dot(X, W1[:-1,:])
-        self.Zin += numpy.dot(numpy.ones((1, 1)), W1[-1:,:])
-        self.Z = self.logistic(self.Zin)
-        self.Z = numpy.nan_to_num(self.Z)
+        """Passa os valores de entrada pela rede e retorna a saída."""
+        Zin = numpy.dot(X, W1.T)
+        Z = self.logistic(Zin)
+        Z = numpy.nan_to_num(Z)
+        Z = numpy.c_[Z, numpy.ones(Z.shape[0])]
 
-        self.Yin = numpy.dot(self.Z, W2[:-1,])
-        self.Yin += numpy.dot(numpy.ones((1, 1)), W2[-1:,:])
-        Y = self.linear(self.Yin)
+        Yin = numpy.dot(Z, W2.T)
+        Y = self.linear(Yin)
         Y = numpy.nan_to_num(Y)
-        return Y
+        return Y, Yin, Z, Zin
 
-    def cost(self, Y, y):
-        """Calculates network output error"""
-        return mean_squared_error(Y, y)
+    def backpropagate(self, X, y, J, Y, Yin, Z, Zin, W1, W2):
+        """Propaga erros pela rede."""
+        dJdW2 = numpy.dot(J, self.linear_derivative(self.Yin))
+        dJdW2 = numpy.dot(dJdW2, self.Z)
 
-    def backpropagate(self, X, y, W1, W2):
-        """Backpropagates costs through the network"""
         delta3 = numpy.multiply(-(y-self.Y), self.linear_derivative(self.Yin))
         dJdW2 = numpy.dot(self.Z.T, delta3)
         dJdW2 = numpy.append(dJdW2, numpy.dot(numpy.ones((1, 1)), delta3), axis=0)
