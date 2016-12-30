@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from context import svm, mlp
+
 import unittest, numpy, time
 from os import listdir
 from os.path import isfile, join
@@ -7,6 +9,7 @@ from random import shuffle
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 
 class SDUMLAHTMTestSuite(unittest.TestCase):
     """Suíte de testes para máquina de vetores suporte."""
@@ -45,10 +48,12 @@ class SDUMLAHTMTestSuite(unittest.TestCase):
         X, y = numpy.array(X), numpy.array(y)
         print(time.time() - start_time)
 
-        #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
         #X_train, y_train = numpy.array([[0,0],[0,1],[1,0],[1,1]]), numpy.array([[0],[1],[1],[0]])
-        #clf = mlp.MLP(hidden_layer_size=3)
-        #clf.fit(X_train, y_train)
+        clf = mlp.MLP(hidden_layer_size=50)
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+        print(classification_report(y_test, y_pred))
         #clf = svm.SVM(kernel='linear', C=1)
         #clf.fit(X_train, y_train)
 
