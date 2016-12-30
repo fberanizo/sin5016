@@ -2,7 +2,7 @@
 
 import numpy, random, time
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import MinMaxScaler, label_binarize
 from sklearn.metrics import accuracy_score
 from sklearn.metrics.pairwise import rbf_kernel
 
@@ -17,6 +17,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         self.coef0 = coef0
         self.tol = 1e-3 # ksi
         self.max_iterations = 10000
+        self.classifiers = []
 
     def fit(self, X, y):
         """Treina o SVM utilizando o algoritmo SMO. 
@@ -25,19 +26,28 @@ class SVM(BaseEstimator, ClassifierMixin):
         (samples_size, input_size) = X.shape
 
         self.classes = numpy.unique(y)
-        if self.classes.size != 2:
-            raise Exception('Multiclass SVM not implemented')
+        
+        # Utiliza estratégia one-vs-all para tratar problemas multiclasses
+        if self.classes.size > 2:
+            self.classifiers = []
+            for clazz in self.classes:
+                partition_not_clazz = numpy.where(y!=clazz)
+                X_binary, y_binary = numpy.array(X, copy=True), numpy.array(y, copy=True)
+                y_binary[partition_not_clazz] = 'not_clazz'
+                clf = SVM(C=self.C, kernel=self.kernel, gamma=self.gamma, degree=self.degree, coef0=self.coef0)
+                clf.fit(X_binary, y_binary)
+                self.classifiers.append((clazz, clf))
+            return self
 
         if self.gamma == 0:
             self.gamma = 1/float(input_size)
 
         scaler = MinMaxScaler((-1,1))
         self.X = scaler.fit_transform(X)
-        self.encoder = LabelEncoder()
-        self.y = self.encoder.fit_transform(y)
+        self.y = label_binarize(y, classes=numpy.unique(y), neg_label=-1, pos_label=1)[:,0]
 
         # Inicializa multiplicadores de Lagrange
-        self.alph = numpy.zeros((X.shape[0],))  
+        self.alph = numpy.zeros((X.shape[0],))
         # Inicializa threshold
         self.b = 0.0
         # Inicializa vetor w
@@ -75,28 +85,57 @@ class SVM(BaseEstimator, ClassifierMixin):
     def predict(self, X):
         """Rotula amostras utilizando o SVM previamente treinado."""
         y = []
-        for x_row in X:
-            y_row = self.classes[1] if self.f(x_row) >= 0 else self.classes[0]
-            y.append(y_row)
-        return self.encoder.inverse_transform(numpy.asarray(y))
+        for X_row in X:
+            if self.classes.size > 2:
+                clazz, clf = max(self.classifiers, key=lambda (clazz, clf): clf.confidence_score(X_row))
+                y.append(clazz)
+            else:
+                clazz = self.classes[1] if self.f(X_row) >= 0 else self.classes[0]
+                y.append(clazz)
+        return numpy.asarray(y)
+
+    def confidence_score(self, X_sample):
+        """Retorna a distância da amostra ao hiperplano de separação."""
+        return self.f(X_sample)
 
     def try_heuristic_1(self, sample1, E1):
         """Heurística que escolhe sample2 maximizando |E1-E2|."""
         X1, y1 = self.X[sample1,:], self.y[sample1]
-        sample2, sample2_step = -1, -1
-        for s2 in range(self.alph.size):
-            X2, y2, alph2 = self.X[s2,:], self.y[s2], self.alph[s2]
-            if 0 < alph2 < self.C:
-                E2 = self.error_cache[sample2]
-                step = abs(E1 - E2)
-                if step > sample2_step:
-                    sample2_step, sample2 = step, s2
-                    if self.try_optimization(sample1, sample2, E1, E2):
-                        return 1
+        nonbound = filter(lambda sample: 0 < self.alph[sample] < self.C, range(self.alph.size))
+        if len(nonbound) == 0:
+            return 0
+        sample2 = max(nonbound, key=lambda sample2: abs(E1 - self.error_cache[sample2]))
+        E2 = self.error_cache[sample2]
+        if self.try_optimization(sample1, sample2, E1, E2):
+            print("Heurística 1: %s, %s" % (self.X[sample1,:], self.X[sample2,:]))
+            time.sleep(5)
+            return 1
+
+        #sample2, sample2_step = -1, -1
+        #for s2 in range(self.alph.size):
+        #    X2, y2, alph2 = self.X[s2,:], self.y[s2], self.alph[s2]
+        #    if 0 < alph2 < self.C:
+        #        E2 = self.error_cache[sample2]
+        #        step = abs(E1 - E2)
+        #        if step > sample2_step:
+        #            sample2_step, sample2 = step, s2
+        #            if self.try_optimization(sample1, sample2, E1, E2):
+        #                print("Heurística 1")
+        #                return 1
         return 0
 
     def try_heuristic_2(self, sample1, E1):
         """Heurística que escolhe sample2 a partir de amostras non-bound."""
+        sample_list = list(range(self.alph.size))
+        random.shuffle(sample_list)
+        for sample2 in sample_list:
+            X2, y2, alph2 = self.X[sample2,:], self.y[sample2], self.alph[sample2]
+            if 0 < alph2 < self.C:
+                E2 = self.error_cache[sample2]
+                if self.try_optimization(sample1, sample2, E1, E2):
+                    print("Heurística 2: %s, %s" % (self.X[sample1,:], self.X[sample2,:]))
+                    time.sleep(5)
+                    return 1
         return 0
 
     def try_heuristic_3(self, sample1, E1):
@@ -107,46 +146,63 @@ class SVM(BaseEstimator, ClassifierMixin):
             X2, y2, alph2 = self.X[sample2,:], self.y[sample2], self.alph[sample2]
             E2 = self.error_cache[sample2] if 0 < alph2 < self.C else self.f(X2) - y2
             if self.try_optimization(sample1, sample2, E1, E2):
+                print("Heurística 3: %s, %s" % (self.X[sample1,:], self.X[sample2,:]))
+                time.sleep(5)
                 return 1
         return 0
 
     def try_optimization(self, sample1, sample2, E1, E2):
-        """Tenta otimizar 2 multiplicadores de Lagrange"""
+        """Tenta otimizar 2 multiplicadores de Lagrange."""
         if sample1 == sample2: return False
 
         X1, y1, alph1 = self.X[sample1,:], self.y[sample1], self.alph[sample1]
         X2, y2, alph2 = self.X[sample2,:], self.y[sample2], self.alph[sample2]
 
-        alpha_prev = self.alph.copy()
+        alph1_prev, alph2_prev = self.alph[sample1], self.alph[sample2]
 
         L, U = self.compute_optimization_bounds(y1, y2, alph1, alph2)
-        if L == U: return False
+        if abs(L - U) < 1e-5: return False
 
         k11 = self.kernel_func(X1, X1)
         k12 = self.kernel_func(X1, X2)
         k22 = self.kernel_func(X2, X2)
         eta = 2.0 * k12 - k11 - k22
-        if eta >= 0: return False
-        
-        if sample2 not in self.error_cache: self.error_cache[sample2] = self.f(X2) - y2
-        E2 = self.error_cache[sample2]
+        if eta < 0:
+            # Calcula novo valor de alph2, e alph1
+            alph2 += float(y2 * (E1 - E2)) / eta
+            alph2 = max(alph2, L)
+            alph2 = min(alph2, U)
+        else:
+            c1 = eta / 2.0
+            c2 = y2 * (E1 - E2) - eta * _alpha2
+            low_obj = c1 * L * L + c2 * L
+            high_obj = c1 * U * U + c2 * U
+            if low_obj > high_obj + 1e-5:
+                alph2 = L
+            elif low_obj < high_obj - 1e-5:
+                alph2 = U
+            else:
+                alph2 = alph2_prev
 
-        # Calcula novo valor de alph2, e alph1
-        alph2 -= float(y2 * (E1 - E2)) / eta
-        alph2 = max(alph2, L)
-        alph2 = min(alph2 , U)
-        if abs(alph2 - self.alph[sample2]) < 1e-3 * (alph2 + self.alph[sample2] + 1e-3): return False
-        alph1 += float(y1 * y2) * (alpha_prev[sample2] - alph2)
+        if abs(alph2 - alph2_prev) < 1e-5 * (alph2 + alph2_prev + 1e-5): return False
+        alph1 -= float(y1 * y2) * (alph2_prev - alph2)
+        if alph1 < 0:
+            alph2 += s * alph1
+            alph1 = 0
+        elif alph1 > self.C:
+            t = alph1 - self.C
+            alph2 += float(y1 * y2) * t
+            alph1 = self.C
 
         # Atualiza threshold
-        b1 = self.b - E1 - y1 * (alph1 - alpha_prev[sample1]) * k11 + y2 * (alph2 - alpha_prev[sample2]) * k12
-        b2 = self.b + E2 + y1 * (alph1 - alpha_prev[sample1]) * k12 + y2 * (alph2 - alpha_prev[sample2]) * k22
-        b = b1 if 0 < self.alph[sample1] < self.C else b2 if 0 < self.alph[sample2] < self.C else (b1 + b2) / 2.0
+        b1 = self.b - E1 - y1 * (alph1 - alph1_prev) * k11 + y2 * (alph2 - alph2_prev) * k12
+        b2 = self.b + E2 + y1 * (alph1 - alph1_prev) * k12 + y2 * (alph2 - alph2_prev) * k22
+        b = b1 if 0 < alph1_prev < self.C else b2 if 0 < alph2_prev < self.C else (b1 + b2) / 2.0
         delta_b = b - self.b
         self.b = b
 
-        t1 = y1 * (alph1 - alpha_prev[sample1])
-        t2 = y2 * (alph2 - alpha_prev[sample2])
+        t1 = y1 * (alph1 - alph1_prev)
+        t2 = y2 * (alph2 - alph2_prev)
 
         self.w += t1 * X1 + t2 * X2
 
@@ -154,11 +210,8 @@ class SVM(BaseEstimator, ClassifierMixin):
         for sample in range(self.alph.size):
             if 0 < self.alph[sample] < self.C:
                 self.error_cache[sample] += t1 * self.kernel_func(X1, self.X[sample,:]) + t2 * self.kernel_func(X2, self.X[sample,:]) - delta_b
-        self.error_cache[sample1] = 0.0
-        self.error_cache[sample2] = 0.0
-
-        self.alph[sample1] = alph1
-        self.alph[sample2] = alph2
+        self.error_cache[sample1], self.error_cache[sample2] = 0.0, 0.0
+        self.alph[sample1], self.alph[sample2] = alph1, alph2
 
         return True
 

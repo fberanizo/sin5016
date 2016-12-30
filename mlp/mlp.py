@@ -2,31 +2,31 @@
 
 import numpy, hashlib, time
 from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, log_loss
-from sklearn.preprocessing import MinMaxScaler, label_binarize
+from sklearn.preprocessing import MinMaxScaler, LabelBinarizer
 
 class MLP(object):
     """Classe que implementa um multilayer perceptron (MLP)."""
     def __init__(self, hidden_layer_size=3, max_epochs=10000):
         self.hidden_layer_size = hidden_layer_size
         self.max_epochs = max_epochs
-        self.cache = {}
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
         # Normaliza valores e adiciona coluna de bias
-        scaler = MinMaxScaler((-1,1))
-        self.X = numpy.c_[scaler.fit_transform(X), numpy.ones(X.shape[0])]
-        self.y = label_binarize(y, classes=numpy.unique(y))
+        self.scaler = MinMaxScaler((-1,1))
+        self.X = numpy.c_[self.scaler.fit_transform(X), numpy.ones(X.shape[0])]
+        self.binarizer = LabelBinarizer()
+        self.y = self.binarizer.fit_transform(y)
 
-        self.input_layer_size = self.X.shape[1] - 1
+        self.input_layer_size = self.X.shape[1]
         self.output_layer_size = self.y.shape[1]
 
         # Inicializa pesos da rede
-        W1 = numpy.random.rand(self.hidden_layer_size, 1 + self.input_layer_size)
+        W1 = numpy.random.rand(self.hidden_layer_size, self.input_layer_size)
         W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
 
         epoch, error = 1, 1
-        # Repete até que o erro seja pequeno, ou o máximo de época é alcançado
+        # Repete até que o erro seja pequeno, ou o máximo de épocas é alcançado
         while error > 1e-2 and epoch <= self.max_epochs:
             total_error = []
 
@@ -40,7 +40,8 @@ class MLP(object):
                 d1, d2 = g1, g2 = -dJdW1, -dJdW2
                 self.mg1, self.mg2 = numpy.mean(g1, axis=1), numpy.mean(g2, axis=1)
 
-                while numpy.linalg.norm(self.mg1) > 1e-5 or numpy.linalg.norm(self.mg2) > 1e-5:
+                iteration = 0
+                while numpy.linalg.norm(self.mg1) > 1e-4 or numpy.linalg.norm(self.mg2) > 1e-4 and iteration < 200:
                     # Encontra alfa que otimiza passo
                     alpha1, alpha2 = self.bisection(X, y, W1, W2, d1, d2)
                     # Atualiza o vetor peso
@@ -57,6 +58,7 @@ class MLP(object):
                     d1, d2 = g1 + beta1 * d1, g2 + beta2 * d2
                     # Salva valores para utilização no próximo passo
                     self.mg1, self.mg2 = mg1, mg2
+                    iteration += 1
 
             # Calcula erro médio para época
             error = numpy.array(total_error).mean()
@@ -66,13 +68,14 @@ class MLP(object):
 
             epoch += 1
 
+        self.W1, self.W2 = W1, W2
         return self
 
     def predict(self, X):
         """Predicts test values"""
-        Y = map(lambda x: self.forward(numpy.array([x]))[0], X)
-        Y = map(lambda y: 1 if y > self.auc else 0, Y)
-        return numpy.array(Y)
+        X = numpy.c_[self.scaler.fit_transform(X), numpy.ones(X.shape[0])]
+        Y = numpy.array(map(lambda X_row: numpy.where(self.forward(numpy.array([X_row]), self.W1, self.W2)[0]>0.5, 1, 0), X))
+        return self.binarizer.inverse_transform(Y)
 
     def score(self, X, y_true):
         """Calculates accuracy"""
@@ -81,27 +84,6 @@ class MLP(object):
         y_pred = map(lambda y: 1 if y > self.auc else 0, y_pred)
         y_pred = numpy.array(y_pred)
         return accuracy_score(y_true.flatten(), y_pred.flatten())
-
-    def error_per_epoch(self, X, y_true):
-        """Return scores at each previously calculated epoch"""
-        curr_W1 = self.W1
-        curr_W2 = self.W2
-
-        errors = []
-
-        for epoch, (self.W1, self.W2) in enumerate(zip(self.W1_history, self.W2_history)):
-            #print 'Epoch: ' + str(epoch)
-            y_pred = map(lambda x: self.forward(numpy.array([x]))[0], X)
-            #auc = roc_auc_score(y_true, y_pred)
-            #y_pred = map(lambda y: 1 if y > self.auc else 0, y_pred)
-            y_pred = numpy.array(y_pred)
-
-            errors.append(mean_squared_error(y_true.flatten(), y_pred.flatten()))
-        
-        self.W1 = curr_W1
-        self.W2 = curr_W2
-
-        return errors
 
     def single_step(self, X, y, W1, W2):
         """Executa um passo do treinamento (forward + backpropagation)."""
@@ -171,21 +153,24 @@ class MLP(object):
         alpha_l, alpha_u = 0.0, 1.0
         Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
         hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+        iteration = 0
         #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
         #time.sleep(2)
-        while hlinha1 < -1e-5:
+        while hlinha1 < -1e-4 and iteration < 10:
             alpha_u *= 2.0
             Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha_u * dJdW1, W2)
             hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+            iteration += 1
             #print("hlinha1 %f, alpha_u = %f" % (hlinha1, alpha_u))
             #time.sleep(2)
 
         alpha1 = (alpha_l + alpha_u) / 2.0
         Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
         hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+        iteration = 0
         #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
         #time.sleep(2)
-        while abs(hlinha1) > 1e-5 and abs(alpha1 - alpha_l) > 1e-5 and abs(alpha1 - alpha_u) > 1e-5:
+        while abs(hlinha1) > 1e-4 and abs(alpha1 - alpha_l) > 1e-4 and abs(alpha1 - alpha_u) > 1e-4 and iteration < 200:
             if hlinha1 > 0:
                 alpha_u = alpha1
             else:
@@ -193,6 +178,7 @@ class MLP(object):
             alpha1 = (alpha_l + alpha_u) / 2.0
             Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1 + alpha1 * dJdW1, W2)
             hlinha1 = numpy.dot(numpy.mean(hlinha1, axis=1).T, numpy.mean(dJdW1, axis=1))
+            iteration += 1
             #print("hlinha1 %f, alpha1 = %f" % (hlinha1, alpha1))
             #time.sleep(2)
 
@@ -200,21 +186,24 @@ class MLP(object):
         alpha_l, alpha_u = 0.0, 1.0
         Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
         hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+        iteration = 0
         #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
         #time.sleep(2)
-        while hlinha2 < -1e-5:
+        while hlinha2 < -1e-4 and iteration < 10:
             alpha_u *= 2.0
             Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha_u * dJdW2)
             hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+            iteration += 1
             #print("hlinha2 %f, alpha_u = %f" % (hlinha2, alpha_u))
             #time.sleep(2)
         
         alpha2 = (alpha_l + alpha_u) / 2.0
         Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
         hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+        iteration = 0
         #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
         #time.sleep(2)
-        while abs(hlinha2) > 1e-5 and abs(alpha2 - alpha_l) > 1e-5 and abs(alpha2 - alpha_u) > 1e-5:
+        while abs(hlinha2) > 1e-4 and abs(alpha2 - alpha_l) > 1e-4 and abs(alpha2 - alpha_u) > 1e-4 and iteration < 200:
             if hlinha2 > 0:
                 alpha_u = alpha2
             else:
@@ -222,6 +211,7 @@ class MLP(object):
             alpha2 = (alpha_l + alpha_u) / 2.0
             Y, J, hlinha1, hlinha2 = self.single_step(X, y, W1, W2 + alpha2 * dJdW2)
             hlinha2 = numpy.dot(numpy.mean(hlinha2, axis=1).T, numpy.mean(dJdW2, axis=1))
+            iteration += 1
             #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
             #time.sleep(2)
         return alpha1, alpha2
