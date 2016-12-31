@@ -9,6 +9,7 @@ class MLP(object):
     def __init__(self, hidden_layer_size=3, max_epochs=10000):
         self.hidden_layer_size = hidden_layer_size
         self.max_epochs = max_epochs
+        #TODO; Receber porcentagem que deve ser utilizada para validação e parada de treinamento (padrão: 0.75)
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
