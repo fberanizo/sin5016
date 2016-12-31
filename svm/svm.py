@@ -219,4 +219,3 @@ class SVM(BaseEstimator, ClassifierMixin):
         for sample2 in range(self.X.shape[0]):
             K[0,sample2] = self.kernel_func(X, self.X[sample2,:])
         return sum(numpy.multiply(numpy.multiply(self.y.T, self.alpha.T), K[0,:])) - self.b
-

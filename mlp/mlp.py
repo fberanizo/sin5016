@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import numpy, hashlib, time
-from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, log_loss
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, LabelBinarizer
 
 class MLP(object):
     """Classe que implementa um multilayer perceptron (MLP)."""
-    def __init__(self, hidden_layer_size=3, max_epochs=10000):
+    def __init__(self, hidden_layer_size=3, max_epochs=10000, validation_size=0.25):
         self.hidden_layer_size = hidden_layer_size
         self.max_epochs = max_epochs
-        #TODO; Receber porcentagem que deve ser utilizada para validação e parada de treinamento (padrão: 0.75)
+        self.validation_size = validation_size
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
@@ -19,23 +20,27 @@ class MLP(object):
         self.binarizer = LabelBinarizer()
         self.y = self.binarizer.fit_transform(y)
 
-        self.input_layer_size = self.X.shape[1]
-        self.output_layer_size = self.y.shape[1]
+        X_train, X_validation, y_train, y_validation = train_test_split(self.X, self.y, test_size=self.validation_size)
+
+        self.input_layer_size = X_train.shape[1]
+        self.output_layer_size = y_train.shape[1]
 
         # Inicializa pesos da rede
         W1 = numpy.random.rand(self.hidden_layer_size, self.input_layer_size)
         W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
 
-        epoch, error = 1, 1
-        # Repete até que o erro seja pequeno, ou o máximo de épocas é alcançado
-        while error > 1e-2 and epoch <= self.max_epochs:
-            total_error = []
+        epoch = 1
+        epochs_without_improvement = 0
+        best_params = {'validation_error':1, 'W1':numpy.array(W1, copy=True), 'W2':numpy.array(W2, copy=True)}
+        # Repete até que o erro de validação não melhore por 5 épocas, ou o máximo de épocas é alcançado
+        while epochs_without_improvement < 5 and epoch <= self.max_epochs:
+            train_error = []
 
             # Treinamento padrão-a-padrão
-            for X, y in zip(self.X, self.y):
+            for X, y in zip(X_train, y_train):
                 X, y = numpy.array([X]), numpy.array([y])
                 Y, J, dJdW1, dJdW2 = self.single_step(X, y, W1, W2)
-                total_error.append(mean_squared_error(y, Y))
+                train_error.append(mean_squared_error(y, Y))
 
                 # Algoritmo de gradiente conjugado
                 d1, d2 = g1, g2 = -dJdW1, -dJdW2
@@ -62,29 +67,36 @@ class MLP(object):
                     iteration += 1
 
             # Calcula erro médio para época
-            error = numpy.array(total_error).mean()
+            train_error = numpy.array(train_error).mean()
+
+            # Calcula erro de validação
+            validation_error = []
+            for X, y in zip(X_validation, y_validation):
+                X, y = numpy.array([X]), numpy.array([y])
+                Y, J, dJdW1, dJdW2 = self.single_step(X, y, W1, W2)
+                validation_error.append(mean_squared_error(y, Y))
+            validation_error = numpy.array(validation_error).mean()
+
+            if validation_error < best_params['validation_error']:
+                best_params = {'validation_error':validation_error, 'W1':numpy.array(W1, copy=True), 'W2':numpy.array(W2, copy=True)}
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
 
             print('Epoch: ' + str(epoch))
-            print('Error: ' + str(error))
+            print('Train Error: ' + str(train_error))
+            print('Validation Error: ' + str(validation_error))
 
             epoch += 1
 
-        self.W1, self.W2 = W1, W2
+        self.W1, self.W2 = best_params['W1'], best_params['W2']
         return self
 
     def predict(self, X):
-        """Predicts test values"""
-        X = numpy.c_[self.scaler.fit_transform(X), numpy.ones(X.shape[0])]
-        Y = numpy.array(map(lambda X_row: numpy.where(self.forward(numpy.array([X_row]), self.W1, self.W2)[0]>0.5, 1, 0), X))
-        return self.binarizer.inverse_transform(Y)
-
-    def score(self, X, y_true):
-        """Calculates accuracy"""
-        y_pred = map(lambda x: self.forward(numpy.array([x]))[0], X)
-        auc = roc_auc_score(y_true, y_pred)
-        y_pred = map(lambda y: 1 if y > self.auc else 0, y_pred)
-        y_pred = numpy.array(y_pred)
-        return accuracy_score(y_true.flatten(), y_pred.flatten())
+        """Estima classes para as entradas informadas."""
+        X = numpy.c_[self.scaler.transform(X), numpy.ones(X.shape[0])]
+        print([self.binarizer.classes_[numpy.argmax(self.forward(X[sample:sample+1,:], self.W1, self.W2)[0])] for sample in range(X.shape[0])])
+        return [self.binarizer.classes_[numpy.argmax(self.forward(X[sample:sample+1,:], self.W1, self.W2)[0])] for sample in range(X.shape[0])]
 
     def single_step(self, X, y, W1, W2):
         """Executa um passo do treinamento (forward + backpropagation)."""
