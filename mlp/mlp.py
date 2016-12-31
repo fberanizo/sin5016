@@ -30,6 +30,8 @@ class MLP(BaseEstimator, ClassifierMixin):
         W1 = numpy.random.rand(self.hidden_layer_size, self.input_layer_size)
         W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
 
+        print("Treinando MLP com %d amostras" % X_train.shape[0])
+
         epoch = 1
         epochs_without_improvement = 0
         best_params = {'validation_error':1, 'W1':numpy.array(W1, copy=True), 'W2':numpy.array(W2, copy=True)}

@@ -32,12 +32,12 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         path = join('/', 'home', 'fabio', 'imagens_clodoaldo', 'Wavelet', wavelet)
         files = [f for f in listdir(path) if isfile(join(path, f))]
         files = sorted(files, key=lambda file: int(file.split('.')[0][1:]))
-        shuffle(files)
+        #shuffle(files)
 
         X, y = [], []
         for file in files:
             try:
-                print(file)
+                print('Lendo arquivo %s'% file)
                 dataset = loadmat(join(path, file))
             except Exception, e:
                 continue
@@ -64,15 +64,15 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         clf1 = svm.SVM(kernel='linear')
         grid = {'C': [0.1, 1, 10, 100]}
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf1, param_grid=grid, cv=skf_inner)
+        clf = GridSearchCV(estimator=clf1, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=4)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer)
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=4)
         print("Linear SVM validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
         print("Linear SVM test score")
         print(classification_report(y_test, y_pred))
-        joblib.dump(clf, 'trained-estimators/svm-linear-'+wavelet+'-best.pkl') 
+        joblib.dump(clf, 'trained-estimators/svm-linear-'+wavelet+'-'+level+'-'+band+'.pkl') 
 
         # Treina SVM RBF
         clf2 = svm.SVM(kernel='rbf')
@@ -86,7 +86,7 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         y_pred = clf.predict(X_test)
         print("RBF SVM test score")
         print(classification_report(y_test, y_pred))
-        joblib.dump(clf, 'trained-estimators/svm-rbf-'+wavelet+'-best.pkl') 
+        joblib.dump(clf, 'trained-estimators/svm-rbf-'+wavelet+'-'+level+'-'+band+'.pkl') 
 
         # Treina MLP
         grid = {'hidden_layer_size': [100, 300, 500]}
@@ -100,7 +100,7 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         y_pred = clf.predict(X_test)
         print("MLP test score")
         print(classification_report(y_test, y_pred))
-        joblib.dump(clf, 'trained-estimators/mlp-sym3-best.pkl') 
+        joblib.dump(clf, 'trained-estimators/mlp-'+wavelet+'-'+level+'-'+band+'.pkl') 
 
         assert True
 
