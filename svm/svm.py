@@ -4,12 +4,11 @@ import numpy, random, time
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import MinMaxScaler, LabelBinarizer
 from sklearn.metrics import accuracy_score
-from sklearn.metrics.pairwise import rbf_kernel
 
 class SVM(BaseEstimator, ClassifierMixin):
     """Classe que implementa um SVM."""
 
-    def __init__(self, C, kernel='linear', gamma=0, degree=2, coef0=0):
+    def __init__(self, C=1, kernel='linear', gamma=0, degree=2, coef0=0):
         self.C = C
         self.kernel = kernel
         self.gamma = gamma
@@ -18,6 +17,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         self.tol = 1e-3 # ksi
         self.max_iterations = 10000
         self.classifiers = []
+        self.scaler = MinMaxScaler((-1,1))
         #TODO; Receber porcentagem que deve ser utilizada para validação e parada de treinamento (padrão: 0.75)
 
     def fit(self, X, y):
@@ -28,13 +28,13 @@ class SVM(BaseEstimator, ClassifierMixin):
         if self.gamma == 0:
             self.gamma = 1.0/float(X.shape[1])
 
-        self.scaler = MinMaxScaler((-1,1))
         self.X = self.scaler.fit_transform(X)
 
         # Utiliza estratégia one-vs-all para tratar problemas multiclasses
         if self.classes.size > 2:
+            print("Treinando SVM com %d amostras" % self.X.shape[0])
             self.classifiers = []
-            for clazz in self.classes:
+            for idx, clazz in enumerate(self.classes):
                 X_binary, y_binary = numpy.array(self.X, copy=True), numpy.array(y, copy=True)
                 partition_clazz, partition_not_clazz = numpy.where(y_binary==clazz), numpy.where(y_binary!=clazz)
                 y_binary[partition_not_clazz], y_binary[partition_clazz] = -1, 1
@@ -42,10 +42,11 @@ class SVM(BaseEstimator, ClassifierMixin):
                 clf.fit(X_binary, y_binary)
                 clf.negative_class, clf.positive_class = 'not clazz', clazz
                 self.classifiers.append(clf)
+                print("SVM One-vs-all %d of %d" % (idx+1, self.classes.size))
             return self
 
         if numpy.array_equal(self.classes, numpy.array([-1,1])):
-            self.y = y[:,0]
+            self.y = y
             self.negative_class, self.positive_class = -1, 1
         else:
             self.binarizer = LabelBinarizer(neg_label=-1, pos_label=1)
@@ -62,7 +63,7 @@ class SVM(BaseEstimator, ClassifierMixin):
             for sample2 in range(self.X.shape[0]):
                 self.K[sample1,sample2] = self.kernel_func(self.X[sample1,:], self.X[sample2,:])
 
-        num_changed, examine_all = 0, True
+        epoch, num_changed, examine_all = 1, 0, True
         while num_changed > 0 or examine_all:
             num_changed = 0
             if examine_all:
@@ -76,12 +77,17 @@ class SVM(BaseEstimator, ClassifierMixin):
                 examine_all = False
             elif num_changed == 0:
                 examine_all = True
-        S = 0
-        for sample in range(self.X.shape[0]):
-            if self.f(sample)*self.y[sample] < 0.0:
-                S += 1
-        S =  float(S) / self.X.shape[0] * 100.0
-        print("Erro de treinamento %f%%" % S)
+            #print('Epoch: ' + str(epoch))
+            epoch += 1
+        S = numpy.multiply(numpy.array(map(self.f, range(self.X.shape[0]))), self.y)
+        S = float(numpy.count_nonzero(S < 0)) / self.X.shape[0] * 100.0
+        #print("Erro de treinamento %f%%" % S)
+        #S = 0
+        #for sample in range(self.X.shape[0]):
+        #    if self.f(sample)*self.y[sample] < 0.0:
+        #        S += 1
+        #S =  float(S) / self.X.shape[0] * 100.0
+        #print("Erro de treinamento %f%%" % S)
         return self
 
     def examine_example(self, sample2):
@@ -182,7 +188,7 @@ class SVM(BaseEstimator, ClassifierMixin):
 
     def predict(self, X):
         """Rotula amostras utilizando o SVM previamente treinado."""
-        X = self.scaler.transform(X)
+        X = self.scaler.fit_transform(X)
         y = []
         for sample1 in range(X.shape[0]):
             if self.classes.size > 2:
@@ -219,3 +225,8 @@ class SVM(BaseEstimator, ClassifierMixin):
         for sample2 in range(self.X.shape[0]):
             K[0,sample2] = self.kernel_func(X, self.X[sample2,:])
         return sum(numpy.multiply(numpy.multiply(self.y.T, self.alpha.T), K[0,:])) - self.b
+
+    def score(self, X, y=None):
+        """Retorna a acurácia média para os dados informados."""
+        y_pred = self.predict(X)
+        return accuracy_score(y, y_pred)

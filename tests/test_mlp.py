@@ -29,7 +29,6 @@ class MLPTestSuite(unittest.TestCase):
         classifier.fit(X_train, y_train)
 
         y_pred = classifier.predict(X_test)
-        print(y_pred)
         print(classification_report(y_test, y_pred))
         #joblib.dump(classifier, 'mlp.pkl') 
 

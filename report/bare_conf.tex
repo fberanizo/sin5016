@@ -19,20 +19,59 @@ Email: f.lopes@usp.br}}
 \maketitle
 
 
-Este relatório tem como objetivo mostrar os resultados do trabalho 1 desenvolvido para a disciplina de Aprendizado de Máquina.
+Este relatório tem como objetivo mostrar os procedimentos e resultados do Trabalho 1 da disciplina de Aprendizado de Máquina. O propósito dessa tarefa foi testar diferentes algoritmos em atividades de reconhecimento biométrico. Duas técnicas de aprendizado supervisionado foram escolhidas para comparação: Multilayer Perceptron (MLP) e Support Vector Machines (SVM).
+% Ambos algoritmos foram implementados em Python.
 
+As seções a seguir explicam as atividades de pré-processamento do conjunto de dados, o treinamento dos modelos e uma discussão dos resultados obtidos.
 
-\section{Conjunto de Dados}
+\section{Base de Dados}
+A base de dados utilizada neste trabalho foi a Homologous Multi-modal Traits Database da Shandong University (SDUMLA-HMT) \cite{sdumlahtm}. Este conjunto de dados contém faces de 106 indivíduos em 7 diferentes ângulos. Estas imagens foram capturadas com diferentes poses, expressões faciais, acessórios e iluminações, assemelhando-se a uma aplicação real. 
+
+Cada amostra deste conjunto é rotulada com o indivíduo que aparece na foto, tornando possível aplicar técnicas de aprendizado supervisionado para classificação.
 
 \subsection{Pré-processamento}
+Originalmente, as imagens do SDUMLA-HTML possuem resolução 480x640 e estão no formato RGB. Antes de realizar a extração de características das imagens, a região de interesse foi segmentada aplicando-se o Algoritmo Viola-Jones. Em uma segunda etapa, as imagens foram convertidas para escala de cinza a sua dimensão alterada para 128x128.
 
 \subsection{Transformada Wavelet}
+A extração de caracterísicas das imagens utilizou a transformada Wavelet. Esta técnica de processamento de sinal realiza a análise de um dado sinal no domínio do tempo e frequência \cite{costa2011ensemble}. Uma função Wavelet pode ser descrita como uma função que apresenta média zero e obedece a Equação:
+
+\[\int_{-\infty}^{\infty} \Psi(t)dt = 0\]
+
+Para utilizar a transformada Wavelet em imagens 2D as linhas e colunas são tratadas como sinais independentes. Ao final da decomposição Wavelet 2D são geradas 4 subimagens. Três delas (HL, LH, HH) contém os detalhes horizontais, verticais e diagonais da imagem original. Uma outra (LL) é uma aproximação da imagem original.
+
+Ao final deste processo são gerados coeficientes que podem ser utilizados para representar a imagem original. Os coeficentes da imagem LL são geralmente os mais utilizados, pois apresentam menor dimensão e boa representatividade \cite{burrus1997introduction}.
 
 \section{Classificadores}
 Não é necessário explicar a teoria referente aos algoritmos de aprendizado de máquina
 escolhidos quando esses foram apresentados em aula. Algoritmos de aprendizado de máquina
 extra, estratégias de combinação e de melhoraria dos algoritmos devem ser explicadas em
 detalhes no relatório.
+
+Duas técnicas de aprendizado supervisionado foram implementadas para este trabalho: MLP e SVM. Estas técnicas não serão decritas em detalhe, pois já foram apresentadas em aula.
+
+A comparação dos algoritmos utilizou 5x2 Fold Cross-validation
+
+ A avaliação de ambos os algoritmos foi feita por meio do
+F-score médio, visto que os dados são desbalanceados, obtido
+por cada experimento, tal que o melhor experimento foi
+
+
+Dois algoritmos de classificação foram implementados
+para o trabalho: o K-NN e a MLP. As próximas
+subseções descrevem, em linhas gerais, as implementações,
+procedimentos realizados para os testes e os resultados
+obtidos por cada algoritmo de mineração de dados.
+A avaliação de ambos os algoritmos foi feita por meio do
+F-score médio, visto que os dados são desbalanceados, obtido
+por cada experimento, tal que o melhor experimento foi
+aquele que obteve o melhor F-score médio.
+Para calcular o F-score, foi gerada uma matriz de confusão
+geral e, com ela, foram geradas matrizes especı́ficas para
+cada classe observada. Desse modo, para cada classe, foram
+calculadas as quantidades de verdadeiros positivos, falsos
+positivos, falsos negativos e verdadeiros negativos e, com
+estes dados, calculou-se a acurácia, erro, especificidade,
+revocação, precisão e F-score, este dado pela fórmula:
 
 \subsection{SVM}
 Máquinas de Vetores suporte.
@@ -50,7 +89,6 @@ Ver a tese do aluno do clodoaldo.
 
 \section{Conclusão}
 
-\section
 
 %\begin{figure}[!t]
 %\centering
@@ -85,6 +123,6 @@ Ver a tese do aluno do clodoaldo.
 %\end{tabular}
 %\end{table}
 
-\bibliography{bare_conf}
+\bibliography{bibliography}
 
 \end{document}

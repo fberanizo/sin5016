@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import numpy, hashlib, time
-from sklearn.metrics import mean_squared_error
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, LabelBinarizer
 
-class MLP(object):
+class MLP(BaseEstimator, ClassifierMixin):
     """Classe que implementa um multilayer perceptron (MLP)."""
     def __init__(self, hidden_layer_size=3, max_epochs=10000, validation_size=0.25):
         self.hidden_layer_size = hidden_layer_size
@@ -95,7 +96,6 @@ class MLP(object):
     def predict(self, X):
         """Estima classes para as entradas informadas."""
         X = numpy.c_[self.scaler.transform(X), numpy.ones(X.shape[0])]
-        print([self.binarizer.classes_[numpy.argmax(self.forward(X[sample:sample+1,:], self.W1, self.W2)[0])] for sample in range(X.shape[0])])
         return [self.binarizer.classes_[numpy.argmax(self.forward(X[sample:sample+1,:], self.W1, self.W2)[0])] for sample in range(X.shape[0])]
 
     def single_step(self, X, y, W1, W2):
@@ -228,3 +228,8 @@ class MLP(object):
             #print("hlinha2 %f, alpha2 = %f" % (hlinha2, alpha2))
             #time.sleep(2)
         return alpha1, alpha2
+
+    def score(self, X, y=None):
+        """Retorna a acurácia média para os dados informados."""
+        y_pred = self.predict(X)
+        return accuracy_score(y, y_pred)
