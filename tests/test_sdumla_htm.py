@@ -24,9 +24,9 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         # Função wavelet mãe (haar, Daubechies, Coiflets, Symlets)
         # Qual(is) sub-banda(s) utilizar (LL, HL, LH, HH)
 
-        level = raw_input('Nível de decomposição (1, 2 ou 3): ')
-        wavelet = raw_input('Função wavelet mãe (db2, db4, sym3, sym4, sym5): ')
-        band = raw_input('Qual sub-banda) utilizar (LL, HL, LH, HH): ')
+        level = '3'#raw_input('Nível de decomposição (1, 2 ou 3): ')
+        wavelet = 'db2'#raw_input('Função wavelet mãe (db2, db4, sym3, sym4, sym5): ')
+        band = 'LL'#raw_input('Qual sub-banda) utilizar (LL, HL, LH, HH): ')
         band_dict = {'LL':0, 'HL':1, 'LH':2, 'HH':3}
 
         # Lê diretório com o conjunto de dados
@@ -67,13 +67,13 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         skf_inner = StratifiedKFold(n_splits=2)
 
         # Treina MLP
-        grid = {'hidden_layer_size': [pca.n_components_ / 4, pca.n_components_ /2, pca.n_components_]}
+        grid = {'hidden_layer_size': [pca.n_components_ / 4]}
         clf3 = mlp.MLP()
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf3, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=1)
+        clf = GridSearchCV(estimator=clf3, param_grid=grid, cv=skf_inner, verbose=0, n_jobs=2)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=1)
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=0, n_jobs=1)
         print("MLP validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
         print("MLP test score")
@@ -82,12 +82,12 @@ class SdumlaHtmTestSuite(unittest.TestCase):
 
         # Treina SVM RBF
         clf2 = svm.SVM(kernel='rbf')
-        grid = {'C': [0.1, 1, 10, 100], 'gamma': [0.0, 0.1, 1]}
+        grid = {'C': [1], 'gamma': [0]}
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf2, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=1)
+        clf = GridSearchCV(estimator=clf2, param_grid=grid, cv=skf_inner, verbose=0, n_jobs=2)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=1)
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=0, n_jobs=1)
         print("RBF SVM validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
         print("RBF SVM test score")
@@ -96,12 +96,12 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         
         # Treina SVM Linear
         clf1 = svm.SVM(kernel='linear')
-        grid = {'C': [0.1, 1, 10, 100]}
+        grid = {'C': [1]}
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf1, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=1)
+        clf = GridSearchCV(estimator=clf1, param_grid=grid, cv=skf_inner, verbose=0, n_jobs=2)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=1)
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=0, n_jobs=1)
         print("Linear SVM validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
         print("Linear SVM test score")

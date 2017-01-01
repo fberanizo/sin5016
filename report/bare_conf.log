@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian) (preloaded format=pdflatex 2016.4.29)  31 DEC 2016 14:11
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian) (preloaded format=pdflatex 2016.4.29)  1 JAN 2017 11:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -524,22 +524,14 @@ LaTeX Font Info:    ... okay on input line 11.
 
 -- Lines per column: 56 (exact).
 
-Underfull \hbox (badness 3019) in paragraph at lines 25--26
+Underfull \hbox (badness 3019) in paragraph at lines 24--25
 []\OT1/ptm/m/n/10 As se[][]oes a seguir ex-pli-cam as ativi-dades de pr[]e-
  []
 
-
-LaTeX Warning: Citation `sdumlahtm' on page 1 undefined on input line 28.
-
-
-LaTeX Warning: Citation `costa2011ensemble' on page 1 undefined on input line 3
-6.
+[1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
 
 
-LaTeX Warning: Citation `burrus1997introduction' on page 1 undefined on input l
-ine 42.
-
-No file bare_conf.bbl.
+] (./bare_conf.bbl)
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -551,33 +543,29 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the appropriate paper size.
 
-[1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
+[2
 
-
-] (./bare_conf.aux)
-
-LaTeX Warning: There were undefined references.
-
- ) 
+] (./bare_conf.aux) ) 
 Here is how much of TeX's memory you used:
- 2290 strings out of 493029
- 32657 string characters out of 6136234
- 100636 words of memory out of 5000000
- 5849 multiletter control sequences out of 15000+600000
- 32365 words of font info for 63 fonts, out of 8000000 for 9000
+ 2320 strings out of 493029
+ 33013 string characters out of 6136234
+ 102636 words of memory out of 5000000
+ 5869 multiletter control sequences out of 15000+600000
+ 36194 words of font info for 73 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 27i,7n,20p,398b,243s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
-e/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texm
-f-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/u
-rw/times/utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a
-.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on bare_conf.pdf (1 page, 69511 bytes).
+ 27i,8n,20p,589b,294s stack positions out of 5000i,500n,10000p,200000b,80000s
+{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc
+}</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr
+/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share
+/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texliv
+e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-
+dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fo
+nts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/t
+imes/utmri8a.pfb>
+Output written on bare_conf.pdf (2 pages, 75518 bytes).
 PDF statistics:
- 37 PDF objects out of 1000 (max. 8388607)
- 26 compressed objects within 1 object stream
+ 40 PDF objects out of 1000 (max. 8388607)
+ 28 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

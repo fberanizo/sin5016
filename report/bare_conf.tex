@@ -18,7 +18,6 @@ Email: f.lopes@usp.br}}
 
 \maketitle
 
-
 Este relatório tem como objetivo mostrar os procedimentos e resultados do Trabalho 1 da disciplina de Aprendizado de Máquina. O propósito dessa tarefa foi testar diferentes algoritmos em atividades de reconhecimento biométrico. Duas técnicas de aprendizado supervisionado foram escolhidas para comparação: Multilayer Perceptron (MLP) e Support Vector Machines (SVM).
 % Ambos algoritmos foram implementados em Python.
 
@@ -42,53 +41,36 @@ Para utilizar a transformada Wavelet em imagens 2D as linhas e colunas são trat
 Ao final deste processo são gerados coeficientes que podem ser utilizados para representar a imagem original. Os coeficentes da imagem LL são geralmente os mais utilizados, pois apresentam menor dimensão e boa representatividade \cite{burrus1997introduction}.
 
 \section{Classificadores}
-Não é necessário explicar a teoria referente aos algoritmos de aprendizado de máquina
-escolhidos quando esses foram apresentados em aula. Algoritmos de aprendizado de máquina
-extra, estratégias de combinação e de melhoraria dos algoritmos devem ser explicadas em
-detalhes no relatório.
-
-Duas técnicas de aprendizado supervisionado foram implementadas para este trabalho: MLP e SVM. Estas técnicas não serão decritas em detalhe, pois já foram apresentadas em aula.
-
-A comparação dos algoritmos utilizou 5x2 Fold Cross-validation (Stratified)
-
- A avaliação de ambos os algoritmos foi feita por meio do
-F-score médio, visto que os dados são desbalanceados, obtido
-por cada experimento, tal que o melhor experimento foi
-
-25\% do conjunto de dados para teste
-
-
-Dois algoritmos de classificação foram implementados
-para o trabalho: o K-NN e a MLP. As próximas
-subseções descrevem, em linhas gerais, as implementações,
-procedimentos realizados para os testes e os resultados
-obtidos por cada algoritmo de mineração de dados.
-A avaliação de ambos os algoritmos foi feita por meio do
-F-score médio, visto que os dados são desbalanceados, obtido
-por cada experimento, tal que o melhor experimento foi
-aquele que obteve o melhor F-score médio.
-Para calcular o F-score, foi gerada uma matriz de confusão
-geral e, com ela, foram geradas matrizes especı́ficas para
-cada classe observada. Desse modo, para cada classe, foram
-calculadas as quantidades de verdadeiros positivos, falsos
-positivos, falsos negativos e verdadeiros negativos e, com
-estes dados, calculou-se a acurácia, erro, especificidade,
-revocação, precisão e F-score, este dado pela fórmula:
-
-\subsection{SVM}
-Máquinas de Vetores suporte.
-Explicar que foi utilizado One-vs-all
-
+Duas técnicas de aprendizado supervisionado foram implementadas para este trabalho: MLP e SVM. Estas técnicas não serão descritas em detalhe, pois já foram apresentadas em aula.
 
 \subsection{MLP}
-Multilayer perceptron.
-Explicar método de definição de alfa ótimo
-enaltecer ĺógica de segunda ordem
+Multilayer Perceptron é um tipo de rede neural artificial feedforward. Neste trabalho, o treinamento das redes foi realizado utilizando a estratégia de backpropagation. O método do gradiente conjugado (de Polak-Ribière) foi o escolhido para otimizar os modelos, com a taxa de aprendizado definida pelo método de bisseção. Na seção \ref{sec:discussao} será mostrado que a utilização deste método permitiu acelerar a convergência dos treinamentos quando comparado à taxa de aprendizado fixa.
+
+O critério de parada do treinamento da MLP foi dado pelo erro de validação. Esta estratégia reserva algumas amostras não utilizadas em treino, e computa o erro de validação destes dados a cada época. Quando o valor do erro de validação não diminuir por 5 épocas\footnote{Valor arbitrário, baseado em empirismo} seguidas, o treinamento é interrompido. Trata-se de uma estratégia para minimizar overfitting (pouca capacidade de generalização dos modelos).
+
+MLPs são sensíveis à alta-dimensionalidade dos dados. Portanto, antes do treinamento foi necessário aplicar uma Análise de Componentes Principais (PCA) aos coeficientes obtidos da transformada Wavelet. Este procedimento selecionou um número de componentes de forma que a variância dos dados fosse pelo menos 90\%$^1$ do valor original. O resultado final definiu aproximadamente 70 valores para utilização no treinamento, variando de acordo da função wavelet, sub-bandas e nível de decomposição.
+
+Uma das vantagens da MLP é o fato de lidar naturalmente com problemas multiclasses. Neste trabalho, dada uma imagem era necessário definir a qual dos 106 indivíduos ela pertence. Na rede neural isso se reflete com a existência de 106 neurônios na camada de saída, em que a ativação de cada um representa a identificação de um indivíduo.
+
+%TODO: Inserir imagem mostrando erro de treino e validação
+%TODO: Falar do ajuste de parâmetros: número de neurônio na camada oculta
+
+\subsection{SVM}
+Máquinas de Vetores Suporte são classificadores que efetuam a separação de amostras em um espaço, geralmente fazendo uso de uma função Kernel para realizar projeção de dados não linearmente separáveis no espaço original. Neste trabalho foi implementado o algoritmo Sequential Minimal Optimization (SMO), conforme visto em aula. 
+
+Diferentemente da MLP, SVMs são insensíveis à alta-dimensionalidade e não necessitam do uso de PCA. Por outro lado, este algorítmo apresenta o problema de ser originalmente para classificação binária. Isto fez necessário o uso de estratégia de classificação multi-classe, neste caso: One-vs-all. Neste método, foi necessário treinar um classificador para cada um dos 106 indivíduos, classificando-os em +1 (é o indivíduo) e -1 (não é o indivíduo). O critério de decisão foi dado pela maior distância da amostra ao hiperplano de separação.
+
+Três tipos de função de kernel foram implementados para este trabalho: linear, gaussiano de base radial (rbf) e polinomial. Os parâmetros C, gamma e degree (grau do polinômio) foram ajustados durante o treinamento por meio de uma busca em grid.
 
 \subsection{Ensembles}
 Ver a tese do aluno do clodoaldo.
 
+\section{Avaliação}
+A avaliação do 
+
 \section{Resultados}
+
+\section{Discussão} \label{sec:discussao}
 
 \section{Conclusão}
 
@@ -126,6 +108,7 @@ Ver a tese do aluno do clodoaldo.
 %\end{tabular}
 %\end{table}
 
-\bibliography{bibliography}
+\bibliographystyle{IEEEtran}
+\bibliography{bare_conf}
 
 \end{document}
