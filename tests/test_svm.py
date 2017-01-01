@@ -18,7 +18,7 @@ class SVMTestSuite(unittest.TestCase):
         # Lê arquivo de dados
         dataset = pandas.read_csv('../datasets/iris/iris.data', sep=',')
         X = dataset.ix[:, dataset.columns != 'class'].to_dict(orient='records')
-        y = dataset.ix[:, dataset.columns == 'class'].as_matrix()
+        y = dataset.ix[:, dataset.columns == 'class'].as_matrix()[:,0]
 
         vectorizer = DictVectorizer(sparse = False)
         X = vectorizer.fit_transform(X)

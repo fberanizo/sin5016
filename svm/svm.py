@@ -4,11 +4,12 @@ import numpy, random, time
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import MinMaxScaler, LabelBinarizer
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 
 class SVM(BaseEstimator, ClassifierMixin):
     """Classe que implementa um SVM."""
 
-    def __init__(self, C=1, kernel='linear', gamma=0, degree=2, coef0=0):
+    def __init__(self, C=1, kernel='linear', gamma=0, degree=2, coef0=0, validation_size=0.25):
         self.C = C
         self.kernel = kernel
         self.gamma = gamma
@@ -18,6 +19,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         self.max_iterations = 10000
         self.classifiers = []
         self.scaler = MinMaxScaler((-1,1))
+        self.validation_size = validation_size
         #TODO; Receber porcentagem que deve ser utilizada para validação e parada de treinamento (padrão: 0.75)
 
     def fit(self, X, y):
@@ -36,7 +38,8 @@ class SVM(BaseEstimator, ClassifierMixin):
             self.classifiers = []
             for idx, clazz in enumerate(self.classes):
                 X_binary, y_binary = numpy.array(self.X, copy=True), numpy.array(y, copy=True)
-                partition_clazz, partition_not_clazz = numpy.where(y_binary==clazz), numpy.where(y_binary!=clazz)
+                partition_clazz = numpy.where(y_binary==clazz)
+                partition_not_clazz = numpy.where(y_binary!=clazz)
                 y_binary[partition_not_clazz], y_binary[partition_clazz] = -1, 1
                 clf = SVM(C=self.C, kernel=self.kernel, gamma=self.gamma, degree=self.degree, coef0=self.coef0)
                 clf.fit(X_binary, y_binary)
@@ -53,6 +56,8 @@ class SVM(BaseEstimator, ClassifierMixin):
             self.y = self.binarizer.fit_transform(y)[:,0]
             self.negative_class, self.positive_class = self.binarizer.inverse_transform(numpy.array([-1]))[0], self.binarizer.inverse_transform(numpy.array([1]))[0]
 
+        self.X, X_validation, self.y, y_validation = train_test_split(self.X, self.y, test_size=self.validation_size)
+
         self.alpha = numpy.zeros((self.X.shape[0],))
         self.error = numpy.zeros((self.X.shape[0],))
         self.b = 0
@@ -63,8 +68,12 @@ class SVM(BaseEstimator, ClassifierMixin):
             for sample2 in range(self.X.shape[0]):
                 self.K[sample1,sample2] = self.kernel_func(self.X[sample1,:], self.X[sample2,:])
 
-        epoch, num_changed, examine_all = 1, 0, True
-        while num_changed > 0 or examine_all:
+        epoch = 1
+        epochs_without_improvement = 0
+        best_params = {'validation_error':1, 'alpha':numpy.array(self.alpha, copy=True), 'b':self.b}
+        num_changed = 0
+        examine_all = True
+        while (num_changed > 0 or examine_all) and (epochs_without_improvement < 20):
             num_changed = 0
             if examine_all:
                 for sample in range(self.alpha.size):
@@ -77,17 +86,24 @@ class SVM(BaseEstimator, ClassifierMixin):
                 examine_all = False
             elif num_changed == 0:
                 examine_all = True
-            #print('Epoch: ' + str(epoch))
+
+            train_error = numpy.multiply(self.predict(self.X), self.y)
+            train_error = float(numpy.count_nonzero(train_error < 0)) / self.X.shape[0] * 100.0
+            validation_error = numpy.multiply(self.predict(X_validation), y_validation)
+            validation_error = float(numpy.count_nonzero(validation_error < 0)) / X_validation.shape[0] * 100.0
+
+            if validation_error < best_params['validation_error']:
+                best_params = {'validation_error':validation_error, 'alpha':numpy.array(self.alpha, copy=True), 'b':self.b}
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
+            print('Epoch: ' + str(epoch))
+            print('Train Error: %f' % train_error)
+            print('Validation Error: %f' % validation_error)
             epoch += 1
-        S = numpy.multiply(numpy.array(map(self.f, range(self.X.shape[0]))), self.y)
-        S = float(numpy.count_nonzero(S < 0)) / self.X.shape[0] * 100.0
-        #print("Erro de treinamento %f%%" % S)
-        #S = 0
-        #for sample in range(self.X.shape[0]):
-        #    if self.f(sample)*self.y[sample] < 0.0:
-        #        S += 1
-        #S =  float(S) / self.X.shape[0] * 100.0
-        #print("Erro de treinamento %f%%" % S)
+        
+        self.alpha, self.b = best_params['alpha'], best_params['b']
         return self
 
     def examine_example(self, sample2):

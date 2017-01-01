@@ -40,7 +40,8 @@ class MLP(BaseEstimator, ClassifierMixin):
             train_error = []
 
             # Treinamento padrão-a-padrão
-            for X, y in zip(X_train, y_train):
+            p = numpy.random.permutation(X_train.shape[0])
+            for X, y in zip(X_train[p], y_train[p]):
                 X, y = numpy.array([X]), numpy.array([y])
                 Y, J, dJdW1, dJdW2 = self.single_step(X, y, W1, W2)
                 train_error.append(mean_squared_error(y, Y))

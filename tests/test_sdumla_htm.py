@@ -8,6 +8,7 @@ from os.path import isfile, join
 from random import shuffle
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
+from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, StratifiedKFold
 from sklearn.metrics import classification_report
@@ -53,54 +54,59 @@ class SdumlaHtmTestSuite(unittest.TestCase):
         #X = numpy.load(join('..', 'datasets', 'sdumla-htm', wavelet+'.'+level+'.'+band+'.data.npy'))
         #y = numpy.load(join('..', 'datasets', 'sdumla-htm', wavelet+'.'+level+'.'+band+'.target.npy'))
 
+        # Aplica PCA para diminuir dimensionalidade dos dados até que a variância seja maior que 0.9
+        pca = PCA(n_components=0.9)
+        X = pca.fit_transform(X)
+        print(pca.n_components_)
+
         # Separa 25% do conjunto de dados para teste
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
         # Realiza busca em grid de parâmetros com 5x2 Fold cross-validation
         skf_outer = StratifiedKFold(n_splits=5)
         skf_inner = StratifiedKFold(n_splits=2)
-        
-        # Treina SVM Linear
-        clf1 = svm.SVM(kernel='linear')
-        grid = {'C': [0.1, 1, 10, 100]}
+
+        # Treina MLP
+        grid = {'hidden_layer_size': [pca.n_components_ / 4, pca.n_components_ /2, pca.n_components_]}
+        clf3 = mlp.MLP()
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf1, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=4)
+        clf = GridSearchCV(estimator=clf3, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=1)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=4)
-        print("Linear SVM validation accuracy" % validation_score.mean())
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=1)
+        print("MLP validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
-        print("Linear SVM test score")
+        print("MLP test score")
         print(classification_report(y_test, y_pred))
-        joblib.dump(clf, 'trained-estimators/svm-linear-'+wavelet+'-'+level+'-'+band+'.pkl') 
+        joblib.dump(clf, 'trained-estimators/mlp-'+wavelet+'-'+level+'-'+band+'.pkl')
 
         # Treina SVM RBF
         clf2 = svm.SVM(kernel='rbf')
         grid = {'C': [0.1, 1, 10, 100], 'gamma': [0.0, 0.1, 1]}
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf2, param_grid=grid, cv=skf_inner)
+        clf = GridSearchCV(estimator=clf2, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=1)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer)
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=1)
         print("RBF SVM validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
         print("RBF SVM test score")
         print(classification_report(y_test, y_pred))
         joblib.dump(clf, 'trained-estimators/svm-rbf-'+wavelet+'-'+level+'-'+band+'.pkl') 
-
-        # Treina MLP
-        grid = {'hidden_layer_size': [100, 300, 500]}
-        clf3 = mlp.MLP()
+        
+        # Treina SVM Linear
+        clf1 = svm.SVM(kernel='linear')
+        grid = {'C': [0.1, 1, 10, 100]}
         # Otimiza parâmetros (2-fold)
-        clf = GridSearchCV(estimator=clf3, param_grid=grid, cv=skf_inner)
+        clf = GridSearchCV(estimator=clf1, param_grid=grid, cv=skf_inner, verbose=10, n_jobs=1)
         clf.fit(X_train, y_train)
         # Validação com parâmetros ótimos de treino (5-fold)
-        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer)
-        print("MLP validation accuracy" % validation_score.mean())
+        validation_score = cross_val_score(clf, X=X_train, y=y_train, cv=skf_outer, verbose=10, n_jobs=1)
+        print("Linear SVM validation accuracy" % validation_score.mean())
         y_pred = clf.predict(X_test)
-        print("MLP test score")
+        print("Linear SVM test score")
         print(classification_report(y_test, y_pred))
-        joblib.dump(clf, 'trained-estimators/mlp-'+wavelet+'-'+level+'-'+band+'.pkl') 
+        joblib.dump(clf, 'trained-estimators/svm-linear-'+wavelet+'-'+level+'-'+band+'.pkl')
 
         assert True
 
