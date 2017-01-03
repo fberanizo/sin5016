@@ -17,6 +17,8 @@ classdef SVM
       K
       tol
       error
+      minXTrain
+      maxXTrain
    end
    methods
       function obj = SVM(varargin)
@@ -39,13 +41,19 @@ classdef SVM
 
       function fit(obj,X,y)
          % Treina um SVM utilizando o algoritmo SMO
-         % Aplica normalização aos dados
-         obj.X=obj.scale(X)
-         obj.y=y
-         % TODO: Dividir conjunto de dados em treino e teste
+         % Ajusta cada feature entre -1 e 1
+         obj.minXTrain=min(X(:));
+         obj.maxXTrain=max(X(:));
+         X=2*(X-obj.minXTrain)/(obj.maxXTrain-obj.minXTrain)-1;
+         % Divide conjunto de dados em treino e validação
+         [TrainInd,ValidationInd,TestInd]=dividerand(size(X,1),.75,.25,.0);
+         obj.X=X(TrainInd,:);
+         obj.y=y(TrainInd,:);
+         XValidation=X(ValidationInd,:);
+         yValidation=y(ValidationInd,:);
          % TODO: Adicionar código de classificador multiclasses
-         [obj.nSamples,obj.nFeatures]=size(X);
-         [obj.nSamples,obj.nOutputs]=size(y);
+         [obj.nSamples,obj.nFeatures]=size(obj.X);
+         [obj.nSamples,obj.nOutputs]=size(obj.y);
          % Parâmetro gamma é 1/nFeatures por padrão
          if obj.gamma == 0
             obj.gamma=1.0/double(obj.nFeatures);
@@ -54,7 +62,7 @@ classdef SVM
          obj.K=zeros(obj.nSamples,obj.nSamples);
          for sample1=1:obj.nSamples
             for sample2=2:obj.nSamples
-               obj.K(sample1,sample2)=obj.kernelFunc(X(sample1,:),X(sample2,:));
+               obj.K(sample1,sample2)=obj.kernelFunc(obj.X(sample1,:),obj.X(sample2,:));
             end
          end
          % Inicializa multiplicadores de Lagrange, parâmetro b, e cache de erros
@@ -84,9 +92,9 @@ classdef SVM
                end
             end
             % Calcula erro de treino e de validação
-            trainError=obj.predict(obj.X).*y;
+            trainError=obj.predict(obj.X).*obj.y;
             trainError=double(length(find(trainError<0)))/double(obj.nSamples)*100.0;
-            validationError=obj.predict(obj,XValidation).*yValidation;
+            validationError=obj.predict(XValidation).*yValidation;
             validationError=double(length(find(validationError<0)))/double(size(XValidation,1))*100.0;
             % Armazena parâmetros que tiveram menor erro de validação
             if validationError < bestParams('validationError')
@@ -96,9 +104,9 @@ classdef SVM
                epochsWithoutImprovement=epochsWithoutImprovement+1;
             end
 
-            disp(epoch);
-            disp(trainError);
-            disp(validationError);
+            epoch
+            trainError
+            validationError
             epoch=epoch+1;
          end
          % Utiliza os parâmetros de menor erro de validação
@@ -153,6 +161,7 @@ classdef SVM
                end
             end
          end
+         numChanged=0;
       end
 
       function tookStep = takeStep(obj,sample1,sample2,E2)
@@ -253,8 +262,8 @@ classdef SVM
 
       function Y = predict(obj,X)
          % Rotula amostras utilizando o SVM previamente treinado
-
-         % TODO: Aplicar scaler
+         % Ajusta cada feature na mesma escala do conjunto de testes
+         X=2*(X-obj.minXTrain)/(obj.maxXTrain-obj.minXTrain)-1;
          % TODO: Adicionar código multiclasses
          [nSamples,nFeatures]=size(X);
          Y=zeros(nSamples,obj.nOutputs);
@@ -263,18 +272,14 @@ classdef SVM
             for sample2=1:obj.nSamples
                K(sample1,sample2)=obj.kernelFunc(X(sample1,:),obj.X(sample2,:));
             end
-            value=sum(obj.y'.*obj.alpha'.*K(sample1,:))-obj.b
+            value=sum(obj.y'.*obj.alpha'.*K(sample1,:))-obj.b;
             if value >= 0 
-               Y(sample1)=1
+               Y(sample1)=1;
             else
-               Y(sample1)=-1
+               Y(sample1)=-1;
             end
          end
          % TODO: "Traduzir classes"
       end
-
-      function XScaled = scale(obj,X)
-         % Normaliza cada feature entre -1 e 1
-         XScaled=2*(X-min(X(:)))/(max(X(:))-min(X(:)))-1
    end
 end
