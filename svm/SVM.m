@@ -19,6 +19,8 @@ classdef SVM
       error
       minXTrain
       maxXTrain
+      classes
+      classifiers
    end
    methods
       function obj = SVM(varargin)
@@ -41,6 +43,29 @@ classdef SVM
 
       function fit(obj,X,y)
          % Treina um SVM utilizando o algoritmo SMO
+         obj.classes=unique(y)
+         % Utiliza estratégia one-vs-all para tratar problemas multiclasses
+         if numel(obj.classes) > 2
+            obj.classifiers=cell(numel(obj.classes),1)
+            for i=1:numel(obj.classes)
+               XBinary=X;
+               yBinary=y;
+               % Classe é transformada em +1, não-classe em -1
+               for j=1:numel(yBinary)
+                  if strcmp(yBinary{j},obj.classes(i))
+                     yBinary{j}=1;
+                  else
+                     yBinary{j}=-1;
+                  end
+               end
+               yBinary=cell2mat(yBinary);
+               % Treina um classificador binário
+               clf=SVM(obj.kernel,'C',obj.C,'gamma',obj.gamma,'degree',obj.degree,'coef0',obj.coef0,'validationSize',obj.validationSize);
+               clf.fit(XBinary,yBinary);
+               classifiers{i}=clf;
+            end
+            return
+         end
          % Ajusta cada feature entre -1 e 1
          obj.minXTrain=min(X(:));
          obj.maxXTrain=max(X(:));
@@ -51,7 +76,7 @@ classdef SVM
          obj.y=y(TrainInd,:);
          XValidation=X(ValidationInd,:);
          yValidation=y(ValidationInd,:);
-         % TODO: Adicionar código de classificador multiclasses
+         % Obtém número de entradas, saídas e características
          [obj.nSamples,obj.nFeatures]=size(obj.X);
          [obj.nSamples,obj.nOutputs]=size(obj.y);
          % Parâmetro gamma é 1/nFeatures por padrão
@@ -247,6 +272,15 @@ classdef SVM
          value=sum(obj.y'.*obj.alpha'.*obj.K(sample,:))-obj.b;
       end
 
+      function value = separationMargin(obj,XSample)
+         % Calcula a distância de uma amostra ao hiperplano de separação
+         K=zeros(1,obj.nSamples);
+         for sample2=1:obj.nSamples
+            K(1,sample2)=obj.kernelFunc(XSample,obj.X(sample2,:));
+         end
+         value=sum(obj.y'.*obj.alpha'.*K(1,:))-obj.b;
+      end
+
       function value = kernelFunc(obj,X1,X2)
          % Calcula saída da função kernel
          if obj.kernel == 'linear'
@@ -264,22 +298,31 @@ classdef SVM
          % Rotula amostras utilizando o SVM previamente treinado
          % Ajusta cada feature na mesma escala do conjunto de testes
          X=2*(X-obj.minXTrain)/(obj.maxXTrain-obj.minXTrain)-1;
-         % TODO: Adicionar código multiclasses
          [nSamples,nFeatures]=size(X);
          Y=zeros(nSamples,obj.nOutputs);
          for sample1=1:nSamples
-            K=zeros(nSamples,obj.nSamples);
-            for sample2=1:obj.nSamples
-               K(sample1,sample2)=obj.kernelFunc(X(sample1,:),obj.X(sample2,:));
-            end
-            value=sum(obj.y'.*obj.alpha'.*K(sample1,:))-obj.b;
-            if value >= 0 
-               Y(sample1)=1;
+            if numel(obj.classes) > 2
+               bestClassifier=containers.Map({'margin','class'},{0,''});
+               for i=1:numel(obj.classes)
+                  margin=obj.classifiers{i}.separationMargin(X(sample1,:));
+                  if margin > bestClassifier('margin')
+                     bestClassifier=containers.Map({'margin','class'},{margin,obj.classes{i}});
+                  end
+               end
+               Y=[Y;bestClassifier{'class'}]
             else
-               Y(sample1)=-1;
+               K=zeros(nSamples,obj.nSamples);
+               for sample2=1:obj.nSamples
+                  K(sample1,sample2)=obj.kernelFunc(X(sample1,:),obj.X(sample2,:));
+               end
+               value=sum(obj.y'.*obj.alpha'.*K(sample1,:))-obj.b;
+               if value >= 0 
+                  Y(sample1)=1;
+               else
+                  Y(sample1)=-1;
+               end
             end
          end
-         % TODO: "Traduzir classes"
       end
    end
 end
