@@ -67,11 +67,9 @@ classdef SVM
             return
          end
          % Ajusta cada feature entre -1 e 1
-         obj.minXTrain=min(X(:));
-         obj.maxXTrain=max(X(:));
-         X=2*(X-obj.minXTrain)/(obj.maxXTrain-obj.minXTrain)-1;
+         X=2*(X-min(X(:)))/(max(X(:))-min(X(:)))-1;
          % Divide conjunto de dados em treino e validação
-         [TrainInd,ValidationInd,TestInd]=dividerand(size(X,1),.75,.25,.0);
+         [TrainInd,ValidationInd,TestInd]=dividerand(size(X,1),1.0-obj.validationSize,obj.validationSize,.0);
          obj.X=X(TrainInd,:);
          obj.y=y(TrainInd,:);
          XValidation=X(ValidationInd,:);
@@ -297,7 +295,7 @@ classdef SVM
       function Y = predict(obj,X)
          % Rotula amostras utilizando o SVM previamente treinado
          % Ajusta cada feature na mesma escala do conjunto de testes
-         X=2*(X-obj.minXTrain)/(obj.maxXTrain-obj.minXTrain)-1;
+         X=2*(X-min(X(:)))/(max(X(:))-min(X(:)))-1;
          [nSamples,nFeatures]=size(X);
          Y=zeros(nSamples,obj.nOutputs);
          for sample1=1:nSamples
