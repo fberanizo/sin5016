@@ -50,7 +50,7 @@ O critério de parada do treinamento da MLP foi dado pelo erro de validação. E
 
 MLPs são sensíveis à alta-dimensionalidade dos dados. Portanto, antes do treinamento foi necessário aplicar uma Análise de Componentes Principais (PCA) aos coeficientes obtidos da transformada Wavelet. Este procedimento selecionou um número de componentes de forma que a variância dos dados fosse pelo menos 90\%$^1$ do valor original. O resultado final definiu aproximadamente 70 valores para utilização no treinamento, variando de acordo da função wavelet, sub-bandas e nível de decomposição.
 
-Uma das vantagens da MLP é o fato de lidar naturalmente com problemas multiclasses. Neste trabalho, dada uma imagem era necessário definir a qual dos 106 indivíduos ela pertence. Na rede neural isso se reflete com a existência de 106 neurônios na camada de saída, em que a ativação de cada um representa a identificação de um indivíduo.
+Uma das vantagens da MLP é o fato de lidar naturalmente com problemas multiclasses. Neste trabalho, dada uma imagem era necessário definir a qual dos N indivíduos ela pertence. Na rede neural isso se reflete com a existência de N neurônios na camada de saída, em que a ativação de cada um representa a identificação de um indivíduo.
 
 %TODO: Inserir imagem mostrando erro de treino e validação
 %TODO: Falar do ajuste de parâmetros: número de neurônio na camada oculta
@@ -58,21 +58,48 @@ Uma das vantagens da MLP é o fato de lidar naturalmente com problemas multiclas
 \subsection{SVM}
 Máquinas de Vetores Suporte são classificadores que efetuam a separação de amostras em um espaço, geralmente fazendo uso de uma função Kernel para realizar projeção de dados não linearmente separáveis no espaço original. Neste trabalho foi implementado o algoritmo Sequential Minimal Optimization (SMO), conforme visto em aula. 
 
-Diferentemente da MLP, SVMs são insensíveis à alta-dimensionalidade e não necessitam do uso de PCA. Por outro lado, este algorítmo apresenta o problema de ser originalmente para classificação binária. Isto fez necessário o uso de estratégia de classificação multi-classe, neste caso: One-vs-all. Neste método, foi necessário treinar um classificador para cada um dos 106 indivíduos, classificando-os em +1 (é o indivíduo) e -1 (não é o indivíduo). O critério de decisão foi dado pela maior distância da amostra ao hiperplano de separação.
+Diferentemente da MLP, SVMs são insensíveis à alta-dimensionalidade e não necessitam do uso de PCA. Por outro lado, este algorítmo apresenta o problema de ser originalmente para classificação binária, portanto, foi necessário o uso de estratégia de classificação multi-classe, neste caso: One-vs-all. Neste método é preciso treinar um classificador para cada um dos N indivíduos, classificando-os em +1 (é o indivíduo) e -1 (não é o indivíduo). O critério de decisão foi dado pela maior distância da amostra ao hiperplano de separação.
 
-Três tipos de função de kernel foram implementados para este trabalho: linear, gaussiano de base radial (rbf) e polinomial. Os parâmetros C, gamma e degree (grau do polinômio) foram ajustados durante o treinamento por meio de uma busca em grid.
-
-\subsection{Ensembles}
-Ver a tese do aluno do clodoaldo.
+Três tipos de função de kernel foram implementados para este trabalho: linear, gaussiano de base radial (rbf) e polinomial. Os parâmetros C, gamma e degree (grau do polinômio) foram ajustados durante o treinamento por meio de uma busca em grid e k-fold cross-validation.
 
 \section{Avaliação}
-A avaliação do 
+A avaliação deste trabalho utilizou mecanismos comuns à area de aprendizado de máquina: k-folds cross validation e um teste não paramétrico para comparação dos classificadores SVM e MLP.
+
+\subsection{K-folds cross-validation}
+Na validação cruzada K-folds o conjunto de dados é dividido aleatoriamente em k subconjuntos de aproximadamente mesmo tamanho. O modelo é treinado com amostras de $k-1$ subconjuntos e validado no subconjunto não utilizado no treino (este processo se repete k vezes). A medida de acurácia dos modelos é obtida dividindo-se o número de classificações corretas de validação pelo total de amostras no conjunto de dados.
+
+\subsection{Teste de Friedman}
+O teste de Friedman é um teste não paramétrico para comparar repetidas observações em mesmo objeto (ex: modelos computacionais) \cite{demvsar2006statistical,settouti2016statistical}. A estatística de teste para Friedman é um $\chi^2$ com k-1 graus de liberdade. Quando o p-valor para este teste é pequeno ($< 0,05$), há evidência para rejeitar a hípótese nula. Para este trabalho, a hipótese nula declara que todos os modelos são equivalentes. A seguinte fórmula define a estatística de teste de Friedman:
+
+\[\chi_{F}^{2} = \frac{12N}{k(k+1)}[\sum{R_{j}^{2} - \frac{k(k+1)^2}{4}}]\]
+
+\section{Experimento}
+Para gerar diferentes conjuntos de dados e acelerar o tempo de treinamento dos modelos o conjunto de dados SDUMLA-HTML foi dividido em quatro conjuntos mutualmente exclusivos de 21 indivíduos e um grupo de 22 indivíduos.
+
 
 \section{Resultados}
+Acurácia de classificação
+
+\begin{table}[!t]
+% increase table row spacing, adjust to taste
+%\renewcommand{\arraystretch}{1.3}
+\caption{Erro quadrático médio de teste dos algoritmos SVM e MLP nos subconjuntos de SDUMLA-HTM}
+%\label{table_example}
+\centering
+\begin{tabular}{lcc}
+\hline
+Indivíduos & SVM & MLP \\
+\hline
+1-21   &  & \\
+22-42  &  & \\
+43-63  &  & \\
+64-84  &  & \\
+85-106 &  & \\
+%\hline
+\end{tabular}
+\end{table}
 
 \section{Discussão} \label{sec:discussao}
-
-\section{Conclusão}
 
 
 %\begin{figure}[!t]

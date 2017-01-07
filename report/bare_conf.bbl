@@ -36,4 +36,16 @@ D.~M. M.~d. Costa, ``Ensemble baseado em m{\'e}todos de kernel para
 C.~S. Burrus, R.~A. Gopinath, and H.~Guo, ``Introduction to wavelets and
   wavelet transforms: a primer,'' 1997.
 
+\bibitem{demvsar2006statistical}
+J.~Dem{\v{s}}ar, ``Statistical comparisons of classifiers over multiple data
+  sets,'' \emph{Journal of Machine learning research}, vol.~7, no. Jan, pp.
+  1--30, 2006.
+
+\bibitem{settouti2016statistical}
+N.~Settouti, M.~E.~A. Bechar, and M.~A. Chikh, ``Statistical comparisons of the
+  top 10 algorithms in data mining for classification task,''
+  \emph{International Journal of Interactive Multimedia and Artificial
+  Inteligence, Special Issue on Artificial Intelligence Underpinning}, vol.~4,
+  pp. 46--51, 2016.
+
 \end{thebibliography}

@@ -20,7 +20,6 @@ class SVM(BaseEstimator, ClassifierMixin):
         self.classifiers = []
         self.scaler = MinMaxScaler((-1,1))
         self.validation_size = validation_size
-        #TODO; Receber porcentagem que deve ser utilizada para validação e parada de treinamento (padrão: 0.75)
 
     def fit(self, X, y):
         """Treina o SVM utilizando o algoritmo SMO. 
