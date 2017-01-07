@@ -33,7 +33,7 @@ class SVM(BaseEstimator, ClassifierMixin):
 
         # Utiliza estratégia one-vs-all para tratar problemas multiclasses
         if self.classes.size > 2:
-            print("Treinando SVM com %d amostras" % self.X.shape[0])
+            print("Treinando SVM: kernel %s, C = %f, gamma = %f, %d amostras" % (self.kernel, self.C, self.gamma, self.X.shape[0]))
             self.classifiers = []
             for idx, clazz in enumerate(self.classes):
                 X_binary, y_binary = numpy.array(self.X, copy=True), numpy.array(y, copy=True)
@@ -44,7 +44,6 @@ class SVM(BaseEstimator, ClassifierMixin):
                 clf.fit(X_binary, y_binary)
                 clf.negative_class, clf.positive_class = 'not clazz', clazz
                 self.classifiers.append(clf)
-                print("SVM One-vs-all %d of %d" % (idx+1, self.classes.size))
             return self
 
         if numpy.array_equal(self.classes, numpy.array([-1,1])):
@@ -72,7 +71,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         best_params = {'validation_error':1, 'alpha':numpy.array(self.alpha, copy=True), 'b':self.b}
         num_changed = 0
         examine_all = True
-        while (num_changed > 0 or examine_all) and (epochs_without_improvement < 20):
+        while (num_changed > 0 or examine_all) and (epochs_without_improvement < 10):
             num_changed = 0
             if examine_all:
                 for sample in range(self.alpha.size):
@@ -97,9 +96,9 @@ class SVM(BaseEstimator, ClassifierMixin):
             else:
                 epochs_without_improvement += 1
 
-            print('Epoch: ' + str(epoch))
-            print('Train Error: %f' % train_error)
-            print('Validation Error: %f' % validation_error)
+            #print('Epoch: ' + str(epoch))
+            #print('Train Error: %f' % train_error)
+            #print('Validation Error: %f' % validation_error)
             epoch += 1
         
         self.alpha, self.b = best_params['alpha'], best_params['b']
@@ -241,7 +240,7 @@ class SVM(BaseEstimator, ClassifierMixin):
             K[0,sample2] = self.kernel_func(X, self.X[sample2,:])
         return sum(numpy.multiply(numpy.multiply(self.y.T, self.alpha.T), K[0,:])) - self.b
 
-    def score(self, X, y=None):
+    def score(self, X, y):
         """Retorna a acurácia média para os dados informados."""
         y_pred = self.predict(X)
         return accuracy_score(y, y_pred)

@@ -8,10 +8,11 @@ from sklearn.preprocessing import MinMaxScaler, LabelBinarizer
 
 class MLP(BaseEstimator, ClassifierMixin):
     """Classe que implementa um multilayer perceptron (MLP)."""
-    def __init__(self, hidden_layer_size=3, max_epochs=10000, validation_size=0.25):
+    def __init__(self, hidden_layer_size=3, max_epochs=1000, validation_size=0.25):
         self.hidden_layer_size = hidden_layer_size
         self.max_epochs = max_epochs
         self.validation_size = validation_size
+        self.max_time = 120 # 120 segundos (2 minutos)
 
     def fit(self, X, y):
         """Trains the network and returns the trained network"""
@@ -30,13 +31,16 @@ class MLP(BaseEstimator, ClassifierMixin):
         W1 = numpy.random.rand(self.hidden_layer_size, self.input_layer_size)
         W2 = numpy.random.rand(self.output_layer_size, 1 + self.hidden_layer_size)
 
-        print("Treinando MLP com %d amostras" % X_train.shape[0])
+        #print("Treinando MLP com %d amostras" % X_train.shape[0])
+        print("Treinando MLP: hidden_layer_size = %d, %d amostras" % (self.hidden_layer_size, X_train.shape[0]))
 
         epoch = 1
         epochs_without_improvement = 0
+        start_time, ellapsed_time = time.time(), 0
         best_params = {'validation_error':1, 'W1':numpy.array(W1, copy=True), 'W2':numpy.array(W2, copy=True)}
-        # Repete até que o erro de validação não melhore por 5 épocas, ou o máximo de épocas é alcançado
-        while epochs_without_improvement < 5 and epoch <= self.max_epochs:
+        # Repete até que o erro de validação não melhore por 5 épocas
+        # ou o máximo de épocas é alcançado, ou tempo limite é alcançado
+        while epochs_without_improvement < 5 and epoch <= self.max_epochs and ellapsed_time < self.max_time:
             train_error = []
 
             # Treinamento padrão-a-padrão
@@ -87,9 +91,10 @@ class MLP(BaseEstimator, ClassifierMixin):
             else:
                 epochs_without_improvement += 1
 
-            print('Epoch: ' + str(epoch))
-            print('Train Error: ' + str(train_error))
-            print('Validation Error: ' + str(validation_error))
+            ellapsed_time = time.time() - start_time
+            #print('Epoch: ' + str(epoch))
+            #print('Train Error: ' + str(train_error))
+            #print('Validation Error: ' + str(validation_error))
 
             epoch += 1
 
@@ -98,7 +103,7 @@ class MLP(BaseEstimator, ClassifierMixin):
 
     def predict(self, X):
         """Estima classes para as entradas informadas."""
-        X = numpy.c_[self.scaler.transform(X), numpy.ones(X.shape[0])]
+        X = numpy.c_[self.scaler.fit_transform(X), numpy.ones(X.shape[0])]
         return [self.binarizer.classes_[numpy.argmax(self.forward(X[sample:sample+1,:], self.W1, self.W2)[0])] for sample in range(X.shape[0])]
 
     def single_step(self, X, y, W1, W2):
@@ -232,7 +237,7 @@ class MLP(BaseEstimator, ClassifierMixin):
             #time.sleep(2)
         return alpha1, alpha2
 
-    def score(self, X, y=None):
+    def score(self, X, y):
         """Retorna a acurácia média para os dados informados."""
         y_pred = self.predict(X)
         return accuracy_score(y, y_pred)
