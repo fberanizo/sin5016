@@ -20,6 +20,7 @@ class SVM(BaseEstimator, ClassifierMixin):
         self.classifiers = []
         self.scaler = MinMaxScaler((-1,1))
         self.validation_size = validation_size
+        self.max_time = 120 # 120 segundos (2 minutos)
 
     def fit(self, X, y):
         """Treina o SVM utilizando o algoritmo SMO. 
@@ -68,10 +69,11 @@ class SVM(BaseEstimator, ClassifierMixin):
 
         epoch = 1
         epochs_without_improvement = 0
+        start_time, ellapsed_time = time.time(), 0
         best_params = {'validation_error':1, 'alpha':numpy.array(self.alpha, copy=True), 'b':self.b}
         num_changed = 0
         examine_all = True
-        while (num_changed > 0 or examine_all) and (epochs_without_improvement < 10):
+        while (num_changed > 0 or examine_all) and (epochs_without_improvement < 10) and ellapsed_time < self.max_time:
             num_changed = 0
             if examine_all:
                 for sample in range(self.alpha.size):
@@ -96,6 +98,7 @@ class SVM(BaseEstimator, ClassifierMixin):
             else:
                 epochs_without_improvement += 1
 
+            ellapsed_time = time.time() - start_time
             #print('Epoch: ' + str(epoch))
             #print('Train Error: %f' % train_error)
             #print('Validation Error: %f' % validation_error)

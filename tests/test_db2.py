@@ -9,21 +9,21 @@ from scipy.io import loadmat
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, StratifiedKFold
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 
 class DB2TestSuite(unittest.TestCase):
     """Suíte de testes para o conjunto de dados SDUMLA-HTM utilizando wavelet daubechies."""
     def __init__(self, *args, **kwargs):
         super(DB2TestSuite, self).__init__(*args, **kwargs)
         X, y = self.read_dataset()
-        self.n_datasets = 5
+        self.n_datasets = 10
         self.X_train, self.X_test, self.y_train, self.y_test = [None]*self.n_datasets, [None]*self.n_datasets, [None]*self.n_datasets, [None]*self.n_datasets
         self.X_train_PCA, self.X_test_PCA = [None]*self.n_datasets, [None]*self.n_datasets
-        # Divide conjunto de dados em 5 subconjuntos, ~1764 amostras de 21 classes
-        print("Dividindo conjunto de dados em 5...")
+        # Divide conjunto de dados em 10 subconjuntos, ~840 amostras de 10 classes
+        print("Dividindo conjunto de dados em 10 subconjuntos...")
         for i in range(self.n_datasets):
-            begin = i * 1764
-            end = begin + 1764
+            begin = i * 840
+            end = begin + 840
             # 25% de cada conjunto de dados será para teste
             self.X_train[i], self.X_test[i], self.y_train[i], self.y_test[i] = train_test_split(X[begin:end,:], y[begin:end], test_size=0.25)
             # Aplica PCA para diminuir dimensionalidade dos dados 
@@ -44,6 +44,8 @@ class DB2TestSuite(unittest.TestCase):
             joblib.dump(clf1[i], 'trained-estimators/db2-3-LL/svm-linear-'+str(i+1)+'.pkl') 
             joblib.dump(clf2[i], 'trained-estimators/db2-3-LL/svm-rbf-'+str(i+1)+'.pkl') 
             joblib.dump(clf3[i], 'trained-estimators/db2-3-LL/mlp-'+str(i+1)+'.pkl') 
+        #y_pred = classifier.predict(X_test)
+        #print(classification_report(y_test, y_pred))
         # Teste de Friedman
         #clf1.append(joblib.load('trained-estimators/db2-3-LL/svm-linear-0.pkl'))
         #clf2.append(joblib.load('trained-estimators/db2-3-LL/svm-rbf-0.pkl'))

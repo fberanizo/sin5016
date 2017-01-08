@@ -95,7 +95,6 @@ class MLP(BaseEstimator, ClassifierMixin):
             #print('Epoch: ' + str(epoch))
             #print('Train Error: ' + str(train_error))
             #print('Validation Error: ' + str(validation_error))
-
             epoch += 1
 
         self.W1, self.W2 = best_params['W1'], best_params['W2']
